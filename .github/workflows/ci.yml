@@ -1,0 +1,46 @@
+name: Verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --project backend
+      - run: uv run --project backend pytest backend/tests -q
+      - run: uv run --project backend ruff check backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint && npm run build && npm run typecheck
+        working-directory: frontend
+      - run: python3 scripts/setup_local.py
+      - run: |
+          cd backend
+          uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+      - run: |
+          cd frontend
+          npm start > /tmp/frontend.log 2>&1 &
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: |
+          python3 - <<'PY'
+          import time, urllib.request
+          for url in ['http://127.0.0.1:8000/health', 'http://127.0.0.1:3000']:
+              for attempt in range(30):
+                  try:
+                      urllib.request.urlopen(url, timeout=2)
+                      break
+                  except Exception:
+                      time.sleep(1)
+              else:
+                  raise SystemExit('Server did not start')
+          PY
+      - run: npm test
+        working-directory: frontend

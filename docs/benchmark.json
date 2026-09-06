@@ -1,0 +1,10 @@
+{
+  "scope": "Local SQLite proposal + confirmation + simulated execution, excludes HTTP/LLM",
+  "python": "3.12.13",
+  "platform": "Linux",
+  "samples": 100,
+  "median_ms": 16.117,
+  "p95_ms": 17.067,
+  "concurrent_confirmation_retries": 32,
+  "execution_events_for_retried_action": 1
+}
