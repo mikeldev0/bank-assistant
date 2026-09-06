@@ -137,6 +137,10 @@ def test_role_separation_and_mcp_transport(tmp_path):
         assert "result" in initialized
         listed = rpc("tools/list", {})
         assert {t["name"] for t in listed["result"]["tools"]} == {"propose_transfer", "get_transfer_status"}
+        for invalid_amount in [True, 1.5, "12500"]:
+            invalid = proposal().model_dump() | {"amount_cents": invalid_amount}
+            rejected = rpc("tools/call", {"name": "propose_transfer", "arguments": invalid})
+            assert rejected["result"]["isError"] is True
         result = rpc("tools/call", {"name": "propose_transfer", "arguments": proposal().model_dump()})
         assert not result["result"].get("isError", False)
         reviewer = {"Authorization": "Bearer " + settings.reviewer_token}

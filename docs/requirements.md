@@ -18,7 +18,7 @@
 | Cambio aplicado a Agent Workflow | Adición propuesta; conservar workflow Agent | Pendiente |
 | Comparativa antes/después | `evaluations/compare.py` con revisión humana | Script preparado; resultados pendientes |
 | Tres ejemplos antes/después | Seleccionar mejoras/regresiones reales | Pendiente |
-| Repositorio privado GitHub | Monorepo backend + frontend | Verificar URL al publicar |
+| Repositorio privado GitHub | [mikeldev0/bank-assistant](https://github.com/mikeldev0/bank-assistant) | Publicado y verificado PRIVATE |
 | Instrucciones, decisiones, riesgos | README + docs | Hecho |
 | Presentación única + uso de IA | `presentation.md` | Documento preparado; completar resultados reales |
 
