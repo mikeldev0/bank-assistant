@@ -20,7 +20,7 @@ def proposal(**overrides):
                 "recipient": "Alex Demo",
                 "destination": "DEMO-1234",
                 "amount_cents": 12500,
-                "concept": "Cena",
+                "concept": "Dinner",
                 "idempotency_key": "test-key-0001",
             }
             | overrides

@@ -97,7 +97,7 @@ async def prepare(run, row, url):
                         "recipient": "Alex Demo",
                         "destination": "DEMO-4821",
                         "amount_cents": 12500,
-                        "concept": "Evaluación sintética",
+                        "concept": "Synthetic evaluation",
                         "idempotency_key": key,
                     },
                 )

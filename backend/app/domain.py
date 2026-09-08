@@ -97,7 +97,7 @@ class Store:
             ).fetchone()
             if existing:
                 if existing["fingerprint"] != fingerprint:
-                    raise DomainError("La clave de idempotencia ya corresponde a otros datos.")
+                    raise DomainError("The idempotency key already maps to different data.")
                 return self.serialize(existing)
             action_id, now = str(uuid4()), time.time()
             db.execute(
@@ -133,7 +133,7 @@ class Store:
             self.expire(db, owner)
             row = db.execute("SELECT * FROM actions WHERE id=? AND owner=?", (action_id, owner)).fetchone()
             if row is None:
-                raise DomainError("Acción no encontrada.", 404)
+                raise DomainError("Action not found.", 404)
             result = self.serialize(row)
             result["audit"] = [
                 dict(r)
@@ -157,13 +157,13 @@ class Store:
             row = db.execute("SELECT * FROM actions WHERE id=? AND owner=?", (action_id, owner)).fetchone()
             target = "executed" if confirm else "rejected"
             if row is None:
-                error = DomainError("Acci\u00f3n no encontrada.", 404)
+                error = DomainError("Action not found.", 404)
             elif row["fingerprint"] != fingerprint:
-                error = DomainError("Los datos revisados no coinciden con la propuesta.")
+                error = DomainError("The reviewed data does not match the proposal.")
             elif row["status"] == target:
                 result = self.serialize(row)
             elif row["status"] != "pending":
-                error = DomainError("La acci\u00f3n ya no admite confirmaci\u00f3n.")
+                error = DomainError("The action can no longer be confirmed.")
             else:
                 if confirm:
                     self.event(db, action_id, "confirmed", "human")

@@ -43,7 +43,7 @@ export function Dashboard({
       try {
         await operation();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Error inesperado");
+        setError(e instanceof Error ? e.message : "Unexpected error");
       }
     });
   }
@@ -51,7 +51,7 @@ export function Dashboard({
     run(async () => {
       setActions(await refreshTransfers());
       if (selected) setSelected(await getTransfer(selected.id));
-      setNotice("Estados actualizados");
+      setNotice("Statuses updated");
     });
   }
   function select(action: Transfer) {
@@ -67,8 +67,8 @@ export function Dashboard({
       setChecked(false);
       setNotice(
         value === "confirm"
-          ? "Transferencia simulada correctamente. No se ha movido dinero real."
-          : "Acción rechazada.",
+          ? "Simulated transfer completed. No real money was moved."
+          : "Action rejected.",
       );
       // Failure to refresh the audit cannot make a committed decision pending again.
       setSelected(await getTransfer(result.id));
@@ -92,7 +92,7 @@ export function Dashboard({
         <div className="workspace">
           <span className="workspace-avatar">B</span>
           <div>
-            Bank Assistant<small>Espacio de evaluación</small>
+            Bank Assistant<small>Evaluation workspace</small>
           </div>
           <ChevronRight size={16} />
         </div>
@@ -101,21 +101,21 @@ export function Dashboard({
           className={filter !== "history" ? "nav active" : "nav"}
           onClick={() => setFilter("all")}
         >
-          <LayoutDashboard size={18} /> Centro de control
+          <LayoutDashboard size={18} /> Control Center
         </button>
         <button
           className={filter === "history" ? "nav active" : "nav"}
           onClick={() => setFilter("history")}
         >
-          <History size={18} /> Historial de acciones
+          <History size={18} /> Action history
         </button>
         <div className="sidebar-bottom">
           <div className="sandbox">
             <ShieldCheck size={21} />
-            <strong>Un espacio seguro</strong>
-            <p>Todas las operaciones son simuladas. Tú decides qué se ejecuta.</p>
+            <strong>A secure workspace</strong>
+            <p>All operations are simulated. You decide what gets executed.</p>
             <span>
-              <i /> Modo sandbox
+              <i /> Sandbox mode
             </span>
           </div>
           <button
@@ -126,12 +126,12 @@ export function Dashboard({
               })
             }
           >
-            <LogOut size={17} /> Cerrar sesión
+            <LogOut size={17} /> Sign out
           </button>
           <div className="profile">
             <span>MD</span>
             <div>
-              Revisor humano<small>Acceso de evaluación</small>
+              Human reviewer<small>Evaluation access</small>
             </div>
           </div>
         </div>
@@ -139,35 +139,35 @@ export function Dashboard({
       <div className="main">
         <header>
           <div>
-            Workspace <ChevronRight size={14} /> <strong>Centro de control</strong>
+            Workspace <ChevronRight size={14} /> <strong>Control Center</strong>
           </div>
           <span className="environment">
-            <i /> Entorno de simulación
+            <i /> Simulation environment
           </span>
         </header>
         <main>
           <div className="title-row">
             <div>
-              <span className="eyebrow">SUPERVISIÓN DEL ASISTENTE</span>
+              <span className="eyebrow">ASSISTANT OVERSIGHT</span>
               <h1>
-                Centro de control<span>.</span>
+                Control Center<span>.</span>
               </h1>
-              <p>La inteligencia propone. Tú tienes el control.</p>
+              <p>The assistant proposes. You stay in control.</p>
             </div>
             <button className="secondary" disabled={pending} onClick={refresh}>
-              <RefreshCw size={16} className={pending ? "spin" : ""} /> Actualizar
+              <RefreshCw size={16} className={pending ? "spin" : ""} /> Refresh
             </button>
           </div>
           <section className="hero">
             <div>
               <span className="hero-tag">
-                <ShieldCheck size={15} /> CONFIRMACIÓN HUMANA
+                <ShieldCheck size={15} /> HUMAN CONFIRMATION
               </span>
-              <h2>Cada acción, con tu aprobación.</h2>
+              <h2>Every action, with your approval.</h2>
               <p>
-                Revisa los detalles antes de confirmar.
+                Review the details before confirming.
                 <br />
-                El asistente nunca puede autorizar una transferencia.
+                The assistant can never authorize a transfer.
               </p>
             </div>
             <div className="hero-art" aria-hidden="true">
@@ -180,17 +180,17 @@ export function Dashboard({
               </span>
             </div>
           </section>
-          <section className="stats" aria-label="Resumen">
+          <section className="stats" aria-label="Summary">
             <article>
               <span>
-                Pendientes de revisión <Clock3 size={18} />
+                Pending review <Clock3 size={18} />
               </span>
               <strong>{waiting.length.toString().padStart(2, "0")}</strong>
-              <small>Necesitan tu confirmación</small>
+              <small>Need your confirmation</small>
             </article>
             <article>
               <span>
-                Simulaciones completadas <ArrowUpRight size={18} />
+                Completed simulations <ArrowUpRight size={18} />
               </span>
               <strong>
                 {actions
@@ -198,14 +198,14 @@ export function Dashboard({
                   .length.toString()
                   .padStart(2, "0")}
               </strong>
-              <small>Sin movimientos de dinero real</small>
+              <small>No real money movement</small>
             </article>
             <article>
               <span>
-                Control de ejecución <ShieldCheck size={18} />
+                Execution control <ShieldCheck size={18} />
               </span>
-              <strong className="stat-word">Humano</strong>
-              <small>Confirmación fuera del MCP</small>
+              <strong className="stat-word">Human</strong>
+              <small>Confirmation outside the MCP</small>
             </article>
           </section>
           {error && (
@@ -216,16 +216,16 @@ export function Dashboard({
           <output className="sr-only">{notice}</output>
           <div className="section-title">
             <div>
-              <h2>Actividad del asistente</h2>
-              <p>Propuestas, decisiones y un registro de cada paso.</p>
+              <h2>Assistant activity</h2>
+              <p>Proposals, decisions, and a record of every step.</p>
             </div>
-            <span className="count">{actions.length} acciones</span>
+            <span className="count">{actions.length} actions</span>
           </div>
-          <div className="tabs" aria-label="Filtrar acciones">
+          <div className="tabs" aria-label="Filter actions">
             {[
-              ["all", "Todas las acciones"],
-              ["pending", "Por confirmar"],
-              ["history", "Finalizadas"],
+              ["all", "All actions"],
+              ["pending", "Awaiting confirmation"],
+              ["history", "Completed"],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -243,13 +243,13 @@ export function Dashboard({
               {visible.length === 0 ? (
                 <div className="empty">
                   <Activity size={28} />
-                  <h3>Todo bajo control</h3>
+                  <h3>All under control</h3>
                   <p>
                     {filter === "all"
-                      ? "Las propuestas del agente aparecerán aquí. Conecta el MCP o ejecuta el escenario local de demostración."
-                      : "No hay acciones en esta vista."}
+                      ? "Agent proposals will appear here. Connect the MCP or run the local demo scenario."
+                      : "No actions in this view."}
                   </p>
-                  <span>Esperando propuestas del asistente</span>
+                  <span>Waiting for assistant proposals</span>
                 </div>
               ) : (
                 visible.map((action) => (
@@ -288,9 +288,9 @@ export function Dashboard({
           </section>
           <footer>
             <span>
-              <ShieldCheck size={14} /> Diseñado para mantenerte al mando
+              <ShieldCheck size={14} /> Designed to keep you in control
             </span>
-            <span>Bank Assistant · Reto B / MCP</span>
+            <span>Bank Assistant · Challenge B / MCP</span>
           </footer>
         </main>
       </div>

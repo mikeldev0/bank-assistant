@@ -28,7 +28,7 @@ export async function authenticated() {
   return verifySession(value, required("SESSION_SECRET"));
 }
 export async function api<T>(path: string, body?: unknown): Promise<T> {
-  if (!(await authenticated())) throw new Error("Inicia sesión para revisar las acciones.");
+  if (!(await authenticated())) throw new Error("Sign in to review actions.");
   const response = await fetch(`${process.env.BACKEND_URL ?? "http://127.0.0.1:8000"}${path}`, {
     method: body ? "POST" : "GET",
     headers: {
@@ -41,8 +41,8 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   });
   if (!response.ok) {
     if (response.status === 409)
-      throw new Error("La acción ha caducado o ya cambió de estado. Actualiza la lista.");
-    throw new Error("No se ha podido completar la operación. Inténtalo de nuevo.");
+      throw new Error("The action expired or its state already changed. Refresh the list.");
+    throw new Error("Unable to complete the operation. Try again.");
   }
   return response.json() as Promise<T>;
 }

@@ -8,7 +8,7 @@ import { isActionId, isFingerprint } from "@/lib/validation";
 export async function login(form: FormData): Promise<string | null> {
   const password = form.get("password");
   if (typeof password !== "string" || password.length > 256 || !passwordMatches(password)) {
-    return "La contraseña no es correcta.";
+    return "The password is incorrect.";
   }
   await startSession();
   revalidatePath("/");
@@ -22,12 +22,12 @@ export async function refreshTransfers() {
   return api<Transfer[]>("/actions");
 }
 export async function getTransfer(id: string) {
-  if (!isActionId(id)) throw new Error("Identificador no válido");
+  if (!isActionId(id)) throw new Error("Invalid identifier");
   return api<Transfer>(`/actions/${id}`);
 }
 export async function decide(id: string, fingerprint: string, decision: "confirm" | "reject") {
   if (!isActionId(id) || !isFingerprint(fingerprint) || !["confirm", "reject"].includes(decision)) {
-    throw new Error("Solicitud no válida");
+    throw new Error("Invalid request");
   }
   const result = await api<Transfer>(`/actions/${id}/decision`, {
     fingerprint,

@@ -21,12 +21,12 @@ export function TransferReview({
   onDecision: (decision: "confirm" | "reject") => void;
 }) {
   return (
-    <aside className="detail" aria-label="Detalle de acción">
+    <aside className="detail" aria-label="Action details">
       {selected ? (
         <>
           <div className="detail-title">
-            <span className="eyebrow">REVISIÓN DE TRANSFERENCIA</span>
-            <button className="icon-button" aria-label="Cerrar detalle" onClick={onClose}>
+            <span className="eyebrow">TRANSFER REVIEW</span>
+            <button className="icon-button" aria-label="Close details" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
@@ -34,19 +34,19 @@ export function TransferReview({
           <span className={`badge ${selected.status}`}>{labels[selected.status]}</span>
           <dl>
             <div>
-              <dt>Beneficiario</dt>
+              <dt>Recipient</dt>
               <dd>{selected.recipient}</dd>
             </div>
             <div>
-              <dt>Cuenta de prueba</dt>
+              <dt>Test account</dt>
               <dd>{selected.destination}</dd>
             </div>
             <div>
-              <dt>Concepto</dt>
+              <dt>Concept</dt>
               <dd>{selected.concept}</dd>
             </div>
             <div>
-              <dt>Referencia</dt>
+              <dt>Reference</dt>
               <dd className="mono">{selected.id.slice(0, 8)}</dd>
             </div>
           </dl>
@@ -55,8 +55,8 @@ export function TransferReview({
               <p className="expires">
                 <Clock3 size={14} />
                 {remaining
-                  ? `Caduca en ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`
-                  : "Confirmación caducada"}
+                  ? `Expires in ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`
+                  : "Confirmation expired"}
               </p>
               <label className="confirmation">
                 <input
@@ -64,7 +64,7 @@ export function TransferReview({
                   checked={checked}
                   onChange={(e) => onChecked(e.target.checked)}
                 />
-                He revisado el importe y el destinatario. Confirmo esta simulación.
+                I have reviewed the amount and recipient. I confirm this simulation.
               </label>
               <button
                 className="confirm-button"
@@ -72,19 +72,19 @@ export function TransferReview({
                 onClick={() => onDecision("confirm")}
               >
                 <ShieldCheck size={17} />
-                Confirmar simulación
+                Confirm simulation
               </button>
               <button
                 className="reject-button"
                 disabled={pending || !remaining}
                 onClick={() => onDecision("reject")}
               >
-                Rechazar propuesta
+                Reject proposal
               </button>
             </>
           )}
           <div className="audit">
-            <h3>Trazabilidad</h3>
+            <h3>Audit trail</h3>
             {selected.audit?.map((event, i) => (
               <div key={i}>
                 <span className="audit-dot" />
@@ -101,10 +101,10 @@ export function TransferReview({
       ) : (
         <div className="detail-empty">
           <ArrowDownLeft size={25} />
-          <h3>Los detalles importan.</h3>
-          <p>Selecciona una acción para revisar sus datos y consultar su trazabilidad.</p>
+          <h3>Details matter.</h3>
+          <p>Select an action to review its data and audit trail.</p>
           <div>
-            <ShieldCheck size={16} /> Verificación antes de ejecución
+            <ShieldCheck size={16} /> Verification before execution
           </div>
         </div>
       )}

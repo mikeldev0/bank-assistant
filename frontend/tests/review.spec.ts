@@ -33,7 +33,7 @@ async function propose(request: APIRequestContext): Promise<Transfer> {
           recipient: "Taylor Demo",
           destination: "DEMO-9234",
           amount_cents: 4890,
-          concept: "Prueba E2E",
+          concept: "E2E test",
           idempotency_key: crypto.randomUUID(),
         },
       },
@@ -56,12 +56,12 @@ async function readAction(request: APIRequestContext, id: string): Promise<Trans
 
 async function review(page: Page, id: string) {
   await page.goto(`/?action=${id}`);
-  await expect(page.getByLabel("Detalle de acci\u00f3n")).toHaveCount(0);
-  await page.getByLabel("Contrase\u00f1a").fill(front.REVIEW_PASSWORD);
-  await page.getByRole("button", { name: "Entrar al espacio" }).click();
-  await expect(page.getByRole("heading", { name: "Centro de control." })).toBeVisible();
+  await expect(page.getByLabel("Action details")).toHaveCount(0);
+  await page.getByLabel("Password").fill(front.REVIEW_PASSWORD);
+  await page.getByRole("button", { name: "Enter workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Control Center." })).toBeVisible();
   await expect(
-    page.getByLabel("Detalle de acci\u00f3n").getByText(id.slice(0, 8), { exact: true }),
+    page.getByLabel("Action details").getByText(id.slice(0, 8), { exact: true }),
   ).toBeVisible();
 }
 
@@ -88,12 +88,12 @@ test("MCP proposal requires explicit review; execution audit is idempotent and m
   const pending = await readAction(request, proposal.id);
   expect(pending.status).toBe("pending");
   expect(pending.audit?.map((event) => event.event)).toEqual(["proposed"]);
-  const confirm = page.getByRole("button", { name: "Confirmar simulaci\u00f3n" });
+  const confirm = page.getByRole("button", { name: "Confirm simulation" });
   await expect(confirm).toBeDisabled();
   await page.getByRole("checkbox").check();
   await expect(confirm).toBeEnabled();
   await confirm.click();
-  await expect(page.getByText("Simulaci\u00f3n completada")).toBeVisible();
+  await expect(page.getByText("Simulation completed")).toBeVisible();
   const executed = await readAction(request, proposal.id);
   expect(executed.status).toBe("executed");
   expect(executed.simulated).toBe(true);
@@ -108,7 +108,7 @@ test("MCP proposal requires explicit review; execution audit is idempotent and m
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath("dashboard-desktop.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("heading", { name: "Centro de control." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Control Center." })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();
@@ -122,10 +122,8 @@ test("rejecting needs no confirmation checkbox and can never execute", async ({
   const proposal = await propose(request);
   await review(page, proposal.id);
   await expect(page.getByRole("checkbox")).not.toBeChecked();
-  await page.getByRole("button", { name: "Rechazar propuesta" }).click();
-  await expect(
-    page.getByLabel("Detalle de acci\u00f3n").getByText("Acci\u00f3n rechazada"),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Reject proposal" }).click();
+  await expect(page.getByLabel("Action details").getByText("Action rejected")).toBeVisible();
   const rejected = await readAction(request, proposal.id);
   expect(rejected.status).toBe("rejected");
   expect(rejected.audit?.map(({ event, actor }) => [event, actor])).toEqual([

@@ -13,15 +13,16 @@ export function Login() {
         </div>
         <span className="eyebrow">HUMAN IN THE LOOP</span>
         <h1>
-          La última palabra
+          The final say
           <br />
-          siempre es tuya.
+          is always yours.
         </h1>
         <p>
-          Revisa las acciones del asistente, confirma los detalles y mantén el control en cada paso.
+          Review the assistant&apos;s actions, confirm the details, and stay in control at every
+          step.
         </p>
         <div className="login-note">
-          <ShieldCheck size={20} /> Entorno de simulación · Sin movimientos de dinero real
+          <ShieldCheck size={20} /> Simulation environment · No real money movement
         </div>
       </section>
       <form
@@ -30,15 +31,15 @@ export function Login() {
             try {
               setError(await login(form));
             } catch {
-              setError("No se ha podido iniciar sesión.");
+              setError("Unable to sign in.");
             }
           })
         }
       >
-        <span className="eyebrow">ACCESO PRIVADO</span>
-        <h2>Centro de control</h2>
-        <p>Introduce tu contraseña de revisión.</p>
-        <label htmlFor="password">Contraseña</label>
+        <span className="eyebrow">PRIVATE ACCESS</span>
+        <h2>Control Center</h2>
+        <p>Enter your review password.</p>
+        <label htmlFor="password">Password</label>
         <input
           id="password"
           name="password"
@@ -48,7 +49,7 @@ export function Login() {
           maxLength={256}
         />
         <button disabled={pending}>
-          {pending ? "Accediendo…" : "Entrar al espacio"}
+          {pending ? "Signing in…" : "Enter workspace"}
           <ArrowUpRight size={18} />
         </button>
         {error && (
@@ -56,7 +57,7 @@ export function Login() {
             {error}
           </p>
         )}
-        <small>Las credenciales de AIFindr permanecen en el servidor.</small>
+        <small>AIFindr credentials remain on the server.</small>
       </form>
     </main>
   );

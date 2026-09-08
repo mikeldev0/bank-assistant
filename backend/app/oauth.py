@@ -188,13 +188,13 @@ class OAuthProvider:
                 db.execute("DELETE FROM oauth WHERE kind='pending' AND key=?", (self.hashed(request_id),))
                 return RedirectResponse(pending["redirect"], status_code=302, headers=headers)
         return HTMLResponse(
-            '<!doctype html><html lang="es"><meta charset="utf-8"><meta http-equiv="refresh" content="3">'
-            "<title>Autorizar AIFindr DEV</title><h1>Conectar el gateway de simulaciones</h1>"
-            "<p>AIFindr DEV solicita permiso para proponer transferencias simuladas y consultar su estado. "
-            "Este permiso no permite confirmar ni ejecutar transferencias.</p>"
-            "<p>El operador debe autorizar esta conexión desde el equipo que aloja el gateway:</p>"
+            '<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="3">'
+            "<title>Authorize AIFindr DEV</title><h1>Connect the simulation gateway</h1>"
+            "<p>AIFindr DEV requests permission to propose simulated transfers and read their status. "
+            "This permission does not allow confirming or executing transfers.</p>"
+            "<p>The operator must authorize this connection from the machine hosting the gateway:</p>"
             "<pre>cd backend\nuv run python -m app.oauth approve " + html.escape(request_id) + "</pre>"
-            "<p>La solicitud caduca en cinco minutos. La página continuará al recibir la autorización.</p></html>",
+            "<p>The request expires in five minutes. The page will continue after authorization.</p></html>",
             headers=headers,
         )
 

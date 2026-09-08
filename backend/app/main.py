@@ -204,7 +204,7 @@ def create_app(settings: Settings | None = None):
 
     def reviewer(request: Request):
         if not token_matches(bearer_token(request.headers), settings.reviewer_token):
-            raise DomainError("No autorizado.", 401)
+            raise DomainError("Unauthorized.", 401)
         return settings.owner_id
 
     @app.get("/health")

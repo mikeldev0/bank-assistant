@@ -18,13 +18,13 @@ export default async function Page({
     actions = await api<Transfer[]>("/actions");
     if (action !== undefined) {
       if (!isActionId(action)) {
-        error = "El enlace de revisión no contiene una referencia válida.";
+        error = "The review link does not contain a valid reference.";
       } else {
         selected = await api<Transfer>(`/actions/${action}`);
       }
     }
   } catch {
-    error = "No se puede conectar con el gateway. Comprueba que el backend esté disponible.";
+    error = "Unable to connect to the gateway. Check that the backend is available.";
   }
   return (
     <Dashboard
