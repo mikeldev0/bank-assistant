@@ -62,8 +62,8 @@ said it could not access the customer's personal profile and therefore could not
 identify their preapproved products. The judge passed it.
 
 [Variant B](https://hub-dev.aifindr.ai/admin/evaluations/eval_ar4W39MYXdx5QUFMdkWXp4/items/evalitm_bohy2DTWXfFdjRWwmUXbMS)
-said: “La metadata de preaprobación que manejo no muestra ningún producto asociado
-a tu cuenta en este momento.” It implied that account-specific metadata had been
+claimed that the available preapproval metadata showed no product associated
+with the account. It implied that account-specific metadata had been
 checked instead of simply stating that it was unavailable. The judge failed it.
 Both displayed 12.1 seconds and one retrieval call. This is a real regression
 against the dataset's evidence criterion, despite the stricter written instruction.

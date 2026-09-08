@@ -1,9 +1,0 @@
-{
-  "checked_at": "2026-09-06T19:05:06.424174+00:00",
-  "transport": "Streamable HTTP over HTTPS",
-  "unauthenticated_status": 401,
-  "authenticated_initialize": "passed",
-  "authenticated_proposal": "passed",
-  "temporary_tunnel": true,
-  "aifindr_connection": "pending"
-}

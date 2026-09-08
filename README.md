@@ -1,23 +1,21 @@
-# Bank Assistant — Safe Actions
+# Bank Assistant
 
-Centro de control para revisar transferencias **simuladas** propuestas por un agente mediante MCP. Next.js 16.3.4 + React 19 + TypeScript estricto; FastAPI + MCP SDK 2 + SQLite. Un monorepo, dos procesos y ninguna conexión bancaria.
+AIFindr technical assessment, **Challenge B**: an authenticated MCP gateway proposes simulated EUR transfers; a separate human review UI confirms or rejects them. No bank or payment provider is connected.
 
-> Estado de entrega: flujo local MCP → revisión web → simulación verificado; transporte HTTPS público autenticado probado con túnel temporal. La conexión a AIFindr DEV y la evaluación antes/después están pendientes del contrato de la Private API y de configurar el MCP en el proyecto. No se presentan resultados locales como evidencia del agente real.
+**Evidence:** the AIFindr DEV agent created a proposal through OAuth MCP; a browser test signed into the review UI, explicitly confirmed it, and the agent subsequently reported `executed` with `simulated: true`. The first grounding comparison scored Control 19/20 and Variant B 17/20; a corrected version has been saved, with evaluation verification pending. See [results](evaluations/results/2026-09-08-grounding.md) and the single [presentation](docs/presentation.md).
 
-![Centro de control](docs/dashboard-desktop.png)
+## Run locally
 
-## Arranque local
-
-Requisitos: Node.js 22.22+ (LTS), Python 3.12+, [uv](https://docs.astral.sh/uv/getting-started/installation/). Desde la raíz:
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node.js 22.22+.
 
 ```bash
 python3 scripts/setup_local.py
+uv sync --locked --project backend
 cd backend
-uv sync --locked
-uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
+uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-En otra terminal:
+In another terminal:
 
 ```bash
 cd frontend
@@ -25,76 +23,89 @@ npm ci
 npm run dev
 ```
 
-Abre http://127.0.0.1:3000 e introduce `REVIEW_PASSWORD` de `frontend/.env.local`. El generador no sobrescribe configuración previa. No uses la API key de AIFindr como contraseña. `backend/.env` y `frontend/.env.local` contienen tokens diferentes para MCP, revisión y sesión; todos están ignorados por Git.
+Open <http://127.0.0.1:3000>. Use `REVIEW_PASSWORD` from `frontend/.env.local`.
+The setup script creates separate MCP/reviewer/session credentials and preserves existing configuration. Never use the AIFindr API key as the review password. All `.env` files and SQLite databases are ignored by Git.
 
-Para crear una propuesta con datos ficticios por el **transporte MCP real**:
+Create a synthetic proposal without AIFindr:
 
 ```bash
 cd backend
 uv run python ../scripts/demo_mcp.py
 ```
 
-En la web: Actualizar → seleccionar propuesta → comprobar importe/destinatario → marcar confirmación → Confirmar simulación. Consulta la trazabilidad. El script no tiene capacidad de confirmar. Reiniciar el backend conserva las acciones en SQLite.
+Open the proposal's `review_url`, sign in, inspect recipient/amount/destination/concept, check the explicit confirmation box, and confirm or reject. `/?action=<id>` selects the exact proposal after login. Opening a link or submitting an AIFindr lead form does not authorize execution.
 
-## Verificación
+## Connect AIFindr DEV
+
+1. Expose port 8000 through a public HTTPS tunnel, for example `cloudflared tunnel --url http://127.0.0.1:8000`.
+2. Set `OAUTH_ISSUER_URL` to its HTTPS origin and add the hostname to `MCP_ALLOWED_HOSTS` in `backend/.env`; restart the backend. Keep access logging disabled to avoid recording OAuth query strings.
+3. In AIFindr Settings → Project → MCP Servers, register `<origin>/mcp`, request `transfers:propose-read`, and allow only `propose_transfer` and `get_transfer_status`.
+4. Connect OAuth. Run the local approval command displayed by the gateway's consent page. This grants proposal/status access only. List the tools and enable the MCP.
+5. Keep workflow **Agent**. Ask for a simulated transfer using a `DEMO-*` destination, then review it in the independent UI and ask the agent to refresh its status.
+
+The native UI Component **Review a simulated MCP transfer** records a review request. Its form has no authenticated decision callback. Actual acceptance uses the reusable `TransferReview` component in Next.js, the authoritative `review_url`, and the human session. Use synthetic identity values when testing the native lead form.
+
+`REVIEW_BASE_URL` defaults to local HTTP; set an HTTPS origin when hosting the frontend elsewhere. Enable secure cookies outside loopback HTTP. A temporary tunnel works only while its process is running; a changed hostname requires updated settings and OAuth reconnection.
+
+OAuth uses the official MCP SDK with S256 PKCE, single-use 60-second codes, one-hour access tokens, one-day rotating refresh tokens and a private SQLite token store. Client registration permits only AIFindr DEV callback origins. A compatibility adapter handles HTTP Basic client IDs omitted from the form while retaining SDK secret validation. The stateless gateway returns 405 for standalone GET SSE; normal MCP requests use POST JSON. Host/Origin checks remain enabled.
+
+References: [AIFindr API](https://docs.aifindr.ai/docs/api/ai-findr-api/), [MCP authorization](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization), [MCP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [OAuth Basic authentication](https://datatracker.ietf.org/doc/html/rfc6749#section-2.3.1).
+
+## Verify
 
 ```bash
-cd backend
-uv run pytest -q
-uv run ruff check .
-uv run python ../scripts/benchmark.py
+uv run --project backend pytest backend/tests -q
+uv run --project backend ruff check backend
+uv run --project backend ruff check --config backend/pyproject.toml evaluations scripts/check_aifindr.py scripts/check_integration.py
+uv run --project backend python scripts/benchmark.py
 ```
+
+With both local servers running:
 
 ```bash
 cd frontend
 npm run lint
-npm run typecheck
 npm run build
+npm run typecheck
 npx playwright install chromium
 npm test
 ```
 
-El E2E requiere ambos servidores arrancados y la configuración local. Crea una propuesta vía MCP, inicia sesión, comprueba que el botón está bloqueado sin confirmación, ejecuta la simulación y revisa trazabilidad y layout móvil. Genera capturas con datos sintéticos en `docs/`. CI reproduce estas comprobaciones.
+The E2E test covers MCP proposal → exact-action link → login → explicit confirmation → execution audit, plus mobile overflow. Screenshots are test artifacts, not source files. Backend tests cover concurrent retries, altered fingerprints, conflicting idempotency keys, expiry, owner isolation, credential separation and OAuth replay/rotation. GitHub Actions runs the same checks.
 
-## Arquitectura
+The [100-action benchmark](evaluations/results/gateway-benchmark.json) measures local SQLite proposal/confirmation/execution, excluding HTTP and LLM time. It also verifies that 32 confirmation retries leave exactly one execution event.
+
+## Part 1: reproducible evaluation
+
+Import [grounding-cases.csv](evaluations/grounding-cases.csv) into AIFindr Datasets; [grounding-cases.json](evaluations/grounding-cases.json) contains the same 20 English questions and criteria. Run Control before the candidate, keeping Agent, model/reasoning, knowledge version, tool configuration and judge unchanged. Preserve each execution, including regressions. The [report](evaluations/results/2026-09-08-grounding.md) contains three concrete before/after examples and explains the measurement limitations; its JSON companion records all cases.
+
+The separate `evaluations/cases.json` covers action-safety scenarios. Optional capture/review utilities can be explored with:
+
+```bash
+backend/.venv/bin/python -m evaluations.run --help
+backend/.venv/bin/python -m evaluations.compare --help
+backend/.venv/bin/python -m scripts.check_aifindr
+backend/.venv/bin/python -m scripts.check_integration --url https://YOUR-HOST/mcp
+```
+
+These readers use documented **Private API** conversation list/detail endpoints on DEV, with Bearer and `X-Organization-Id`. Configure `AIFINDR_API_KEY`, `AIFINDR_PROJECT_ID` and `AIFINDR_ORGANIZATION_ID` through `.env` (the existing `frontend/.env` key is also supported by CLI code). There is no invented private chat/write endpoint or Widget API substitute. Raw prompts, transcripts and capture manifests must stay under ignored `private/`, with mode-0600 output.
+
+## Architecture and trade-offs
 
 ```mermaid
 flowchart LR
-    A[Agente AIFindr] -->|HTTPS + token MCP| M[MCP: proponer / consultar]
-    H[Revisor humano] -->|Cookie HttpOnly| N[Next.js / Server Actions]
-    N -->|Token exclusivo de revisión| F[FastAPI / decisiones]
-    M --> D[Política determinista]
+    A[AIFindr Agent] -->|OAuth / HTTPS| M[MCP propose and status]
+    H[Human reviewer] -->|HttpOnly session| N[Next.js Server Actions]
+    N -->|Separate reviewer credential| F[FastAPI decision API]
+    M --> D[Deterministic policy]
     F --> D
-    D --> S[(SQLite: acciones + auditoría)]
+    D --> S[(SQLite actions and audit)]
 ```
 
-- El modelo decide cuándo **proponer**; el código valida importe, cuenta ficticia y estados. No se confía la autorización al prompt.
-- MCP expone únicamente `propose_transfer` y `get_transfer_status` en `/mcp`, usando Streamable HTTP stateless. Las herramientas no aceptan `owner`, `confirmed` ni campos extra.
-- Identidad fijada por configuración del servidor, nunca por el modelo. Alcance de esta prueba: un proyecto / un revisor. La capa de datos está aislada por propietario, pero no hay un sistema multiusuario público.
-- Dinero en céntimos enteros, EUR, rango 1–100000. Solo destinos `DEMO-*`; imposible enviar a un banco real.
-- Idempotencia por `(owner, key)` y hash de datos inmutables. Reutilizar clave con otros datos devuelve conflicto.
-- `BEGIN IMMEDIATE`, restricción UNIQUE y simulación dentro de la misma transacción evitan dobles ejecuciones ante concurrencia. Esto no es una garantía de exactly-once para proveedores externos.
-- SHA-256 identifica los datos que revisó el humano; no es firma digital ni sustituto de autenticación.
-- Cookies firmadas con HMAC, HttpOnly y SameSite Strict, vencimiento de 8 horas. `Secure` obligatorio fuera del HTTP local. Las Server Actions verifican sesión en cada acceso. Next comprueba el origen de las mutaciones.
-- TTL de propuesta de 10 minutos; la UI informa, pero el servidor determina la caducidad. Se materializa al leer/decidir, sin worker periódico.
+- The model can propose, not authorize. MCP exposes no confirmation tool; the reviewer credential is never shared with the agent or browser. Every Server Action checks the signed session; Next.js also checks mutation origins.
+- Amounts are integer EUR cents, 1–100000. Destinations must be synthetic. Owner identity comes from server configuration, never model input.
+- A proposal fingerprint binds confirmation to immutable data. It is not a signature or a replacement for authentication. Reusing an idempotency key with changed data conflicts.
+- SQLite uniqueness plus `BEGIN IMMEDIATE` serializes the synchronous simulation. `pending` becomes `executed`, `rejected` or `expired`; `confirmed` is an audit event inside the execution transaction. This does not promise exactly-once delivery to an external payment provider.
+- Proposals expire after ten minutes by default. Server time is authoritative. State persists across restarts; the UI refreshes explicitly.
 
-```mermaid
-stateDiagram-v2
-    [*] --> pending: propuesta válida
-    pending --> executed: humano confirma / simulación atómica
-    pending --> rejected: humano rechaza
-    pending --> expired: plazo agotado
-```
-
-`confirmed` es un evento de auditoría dentro de la transacción de ejecución, no un estado persistente intermedio: no existe trabajo asíncrono que justifique ese estado en este simulador.
-
-## AIFindr y entrega
-
-- [Conexión HTTPS y configuración de AIFindr](docs/integration.md).
-- [Matriz de requisitos y estado real](docs/requirements.md).
-- [Defensa de decisiones, riesgos y límites](docs/decisions.md).
-- [Presentación asíncrona escrita](docs/presentation.md).
-- [20 casos de evaluación](evaluations/cases.json), [hipótesis y cambio propuesto](evaluations/prompt-improvement.md).
-- [Medición reproducible local](docs/benchmark.json).
-
-No se incluyen documentos de la prueba, prompts originales, conocimiento del banco, credenciales o transcripts privados. Guarda ese material en `private/` (ignorado), incluso siendo un repositorio privado.
+Scope: one project and one shared reviewer, one SQLite instance, simulated operations only. No OIDC/MFA, distributed rate limiting, external tamper-resistant audit, background payments or multi-instance storage. Sessions last eight hours; logout removes the browser cookie, while a copied cookie remains valid until expiry or secret rotation. The action list shows the latest 100 records. Persistent deployment needs stable HTTPS, proxy limits and durable storage; real financial execution would require a different identity, approval and reconciliation design.

@@ -1,45 +1,45 @@
-# Bank Assistant — presentación asíncrona
+# Bank Assistant — assessment presentation
 
-Documento de presentación. Tiempo orientativo de explicación: 8–10 minutos. Estado actual: implementación local verificada; integración AIFindr y evidencia de Parte 1 pendientes. No enviar como prueba completamente terminada hasta cerrar esos puntos.
+## Scope and current evidence
 
-## 1. Problema y foco (45 s)
+This submission addresses both the grounding assessment and Challenge B: an agent proposes a simulated transfer, while a separately authenticated reviewer decides whether to execute it. No bank or payment provider is connected.
 
-Un agente bancario puede confundir una intención con una autorización o afirmar que ha realizado una operación que solo propuso. Elijo el reto B para hacer verificable esa frontera. La demo usa transferencias ficticias y no tiene ninguna conexión con un banco.
+The implementation and AIFindr OAuth flow have been exercised. Part 1 has a completed 20-case baseline and candidate comparison, but the first candidate regressed. A revised candidate has been saved; it must not be described as an improvement until its evaluation is verified. The native AIFindr review-request form exists, but rendering and submission in Playground remain to be verified.
 
-## 2. Parte 1: hipótesis y método (90 s)
+## Part 1 — hypothesis, experiment and findings
 
-Hipótesis: un contrato explícito sobre evidencias, estados y confirmación reduce afirmaciones falsas de ejecución y respuestas financieras no fundamentadas. Hay 20 casos fijos: consultas de productos, aclaraciones, límites, inyección, secretos, caducidad y reintentos. Cada caso tiene un criterio de éxito.
+The hypothesis was that explicit evidence requirements would reduce unsupported product claims and inappropriate account-specific assertions. The fixed dataset contains 20 English questions and success criteria. Control ran before Variant B, with the same Agent workflow, model, knowledge version and judge configuration.
 
-Antes de modificar el agente: capturar prompt publicado y configuración del workflow Agent en privado, ejecutar los 20 casos en conversaciones independientes y registrar respuestas, tools, latencia y uso. Después: añadir la política propuesta y repetir manteniendo constantes modelo, fuentes y herramientas. Revisar evidencias con criterio humano y comparar casos emparejados. Los casos que requieren una acción previa necesitan preparar y registrar ese estado en ambas corridas.
+Control passed 19/20 cases (95%); Variant B passed 17/20 (85%). One case improved and three regressed. The [evaluation report](../evaluations/results/2026-09-08-grounding.md) contains per-run links, measurements and three before/after examples:
 
-**Resultados reales todavía no disponibles.** No hay porcentaje de mejora inventado. El cierre requiere el contrato privado, baseline, cambio publicado y segunda ejecución. Seleccionar entonces tres casos con evidencia concreta, incluyendo una regresión si la hubiera.
+- Account comparison improved its source selection and separation of product types.
+- Preapproval handling regressed by implying that unavailable account metadata had been checked.
+- Mortgage documentation regressed to an empty response despite successful retrieval.
 
-## 3. Demo del flujo principal (2 min)
+Manual review also found disagreement with the judge on an identity-verification refusal. The original score is retained. One run per prompt is insufficient to establish statistical significance; lower displayed token totals are not a complete cost estimate.
 
-1. Ejecutar `scripts/demo_mcp.py`: el cliente descubre/conversa por el transporte MCP y propone 125 EUR a Alex Demo, destino DEMO-4821.
-2. Abrir Next, iniciar sesión como revisor y actualizar. Ver propuesta pendiente.
-3. Revisar importe, beneficiario, destino y concepto. El botón permanece deshabilitado hasta marcar la confirmación.
-4. Confirmar. Estado Simulada y eventos proposed → confirmed → executed.
-5. Consultar estado por MCP. Una ejecución real de esta secuencia desde AIFindr sigue pendiente; el cliente sintético demuestra la implementación local.
+The revised candidate distinguishes missing metadata from a verified empty result, requires a substantive answer after retrieval, and follows the platform's configured output schema. Raw project prompts and transcripts remain private. The delivered dataset, scripts and result records support reproduction without publishing confidential project content.
 
-## 4. Decisiones técnicas (90 s)
+## Part 2 — demonstrated flow
 
-El MCP usa el SDK oficial y solo publica herramientas de propuesta y consulta. FastAPI y MCP comparten una política determinista. El frontend usa Server Actions para que las credenciales no lleguen al navegador. SQLite es suficiente para una simulación síncrona en una única instancia. No añado una cola que no resuelve un problema del alcance.
+The AIFindr DEV agent connected to the public HTTPS MCP through OAuth and created a synthetic EUR 25 proposal. A Playwright test opened that proposal's exact review link, signed in, checked the explicit confirmation box and submitted confirmation. The agent then queried the action and returned `executed` with `simulated: true`. The audit recorded proposal, reviewer confirmation and simulated execution. Browser automation acted as the review user for this test.
 
-Los importes son céntimos enteros, los destinos son ficticios y los datos de la propuesta son inmutables. La confirmación está ligada a su huella. Tokens separados impiden que el agente se autoconfirme.
+To reproduce, follow the [README](../README.md): start both services, connect the MCP, request a transfer to a `DEMO-*` destination, open its `review_url`, and explicitly confirm or reject it. The model has only proposal and status tools.
 
-## 5. Caso no trivial y mediciones (1 min)
+The native AIFindr component records a review request; its lead-form submission cannot authorize a transfer. Acceptance uses the reusable Next.js `TransferReview` component and an authenticated Server Action. The gateway supplies the review link from its own configuration.
 
-Con peticiones concurrentes la restricción de unicidad y la transacción producen una sola propuesta y una sola ejecución. El test verifica el número de eventos, no solo el código HTTP. También se prueban datos distintos bajo la misma clave, acceso de otro propietario, caducidad y credencial incorrecta.
+## Architecture and validation
 
-El benchmark local usa 100 acciones. Véase `benchmark.json` para mediana y p95 medidos y el alcance preciso. No mide al LLM ni la red. Playwright verifica el flujo web y el ancho móvil.
+FastAPI and MCP share a deterministic policy and SQLite action/audit storage. Next.js keeps the separate reviewer credential on the server. Integer cents, immutable proposal fingerprints, fixed server-side ownership and idempotency checks constrain model-generated input. SQLite transactions serialize confirmation and simulated execution.
 
-## 6. Límites y evolución (1 min)
+Backend checks cover replay, conflicting retries, altered proposals, expiration, owner isolation and OAuth token rotation. Frontend checks include lint, production build, type checking and the review E2E, including mobile overflow. The [local benchmark](../evaluations/results/gateway-benchmark.json) measured 100 actions: median 16.117 ms, P95 17.067 ms. Thirty-two concurrent confirmation retries produced one execution event. These timings exclude HTTP and LLM work.
 
-Un solo proyecto y revisor, sin banca real, OAuth de usuarios ni auditoría resistente al administrador. No hay servicio de ejecución externo. Para producción: identidad OIDC, rate limiting, PostgreSQL, auditoría externa y, si aparece un proveedor real, outbox/reconciliación e idempotencia de proveedor. No escalar esta base SQLite como si fuera un servicio distribuido.
+## Trade-offs and remaining limits
 
-## 7. Uso de IA y autoría (45 s)
+The assessment uses one shared reviewer, a single SQLite instance and synchronous simulation. A temporary tunnel must remain running; its address is not a permanent deployment. Real payments would require stronger identity, durable external audit, provider idempotency and reconciliation. This implementation makes no exactly-once claim for an external service.
 
-Se utilizó Codex para interpretar requisitos, implementar código, preparar documentación y ejecutar comprobaciones. Se consultó documentación oficial de Next.js, MCP y AIFindr; se verificaron dependencias en los registros. No se delegó en subagentes. La IA no tuvo autorización para enviar correos de entrega ni publicó datos confidenciales.
+The first prompt candidate should not replace Control on the available evidence. Verification of the revised candidate and native Playground form is still outstanding; the repository must not be represented as a fully completed assessment until these checks are closed.
 
-La persona candidata solicitó Next.js, FastAPI, el reto MCP y GitHub privado. Las elecciones de SQLite, separación de credenciales, modelo de estados y evaluación propuestas aquí fueron elaboradas con asistencia de IA y deben ser revisadas y asumidas por la persona candidata antes de la defensa. No se atribuyen retrospectivamente decisiones humanas no tomadas. Evidencia: tests, E2E, build, lint, benchmark y capturas sintéticas incluidas.
+## AI assistance
+
+Codex assisted with requirement analysis, implementation, documentation, official documentation research and test execution. No subagents were used. The candidate requested the stack and integration direction; implementation choices were developed with AI assistance and require the candidate's review and ownership. No delivery email was sent. Credentials, raw prompts, transcripts and local runtime state are excluded from Git.
