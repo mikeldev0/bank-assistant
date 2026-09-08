@@ -20,19 +20,31 @@ jobs:
           retention-days: 3
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - uses: astral-sh/setup-uv@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - run: uv sync --locked --project backend
+      - name: Python lint and complexity
+        run: uv run --project backend ruff check --config backend/pyproject.toml backend evaluations scripts
+      - name: Python formatting
+        run: uv run --project backend ruff format --check --config backend/pyproject.toml backend evaluations scripts
       - run: uv run --project backend pytest backend/tests -q
-      - run: uv run --project backend ruff check --config backend/pyproject.toml backend evaluations scripts
       - run: uv run --project backend python scripts/benchmark.py
       - run: npm ci
         working-directory: frontend
-      - run: npm run lint && npm run build && npm run typecheck
+      - name: Oxlint correctness and complexity
+        run: npm run lint:oxlint
+        working-directory: frontend
+      - name: Next.js and React ESLint rules
+        run: npm run lint:eslint
+        working-directory: frontend
+      - name: Oxfmt repository formatting
+        run: npm run format:check
+        working-directory: frontend
+      - run: npm run build && npm run typecheck
         working-directory: frontend
       - run: python3 scripts/setup_local.py
       - run: |
