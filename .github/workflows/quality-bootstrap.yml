@@ -1,0 +1,48 @@
+name: Prepare Oxc tooling (temporary)
+on:
+  push:
+    branches: [fix/assessment-audit-2026-09-08]
+    paths: [.github/workflows/quality-bootstrap.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --locked --project backend
+      - name: Generate dependency lock with pinned Oxc versions
+        working-directory: frontend
+        run: |
+          npm uninstall --save-dev prettier
+          npm install --save-dev --save-exact oxlint@1.82.0 oxfmt@0.67.0
+          npm ls oxlint oxfmt --depth=1
+      - name: Package isolated tools for offline review
+        run: |
+          npm install --prefix /tmp/quality-tools --ignore-scripts --save-exact oxlint@1.82.0 oxfmt@0.67.0
+          cp backend/.venv/bin/ruff /tmp/quality-tools/ruff
+          tar -czf /tmp/quality-tools.tgz -C /tmp/quality-tools .
+      - name: Export tracked source with generated lock (no local secrets)
+        run: |
+          python3 - <<'PY'
+          import subprocess, zipfile
+          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          with zipfile.ZipFile('prepared-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in paths:
+                  if path:
+                      archive.write(path, path)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxc-preparation
+          path: |
+            prepared-source.zip
+            /tmp/quality-tools.tgz
+          retention-days: 1
