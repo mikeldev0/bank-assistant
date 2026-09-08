@@ -2,8 +2,6 @@ from contextlib import asynccontextmanager
 from secrets import compare_digest
 from typing import Annotated, Literal
 
-from app.domain import DomainError, Proposal, Store
-from app.oauth import SCOPE, OAuthProvider
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from mcp.server import MCPServer
@@ -13,6 +11,9 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.responses import Response
+
+from app.domain import DomainError, Proposal, Store
+from app.oauth import SCOPE, OAuthProvider
 
 
 class Settings(BaseSettings):

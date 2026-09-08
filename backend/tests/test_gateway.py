@@ -1,10 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from app.domain import DomainError, Proposal, Store
-from app.main import Settings, create_app
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+
+from app.domain import DomainError, Proposal, Store
+from app.main import Settings, create_app
 
 
 @pytest.fixture

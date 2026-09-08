@@ -2,9 +2,10 @@ import base64
 import hashlib
 from urllib.parse import parse_qs, urlsplit
 
+from fastapi.testclient import TestClient
+
 from app.main import Settings, create_app
 from app.oauth import SCOPE
-from fastapi.testclient import TestClient
 
 
 def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
