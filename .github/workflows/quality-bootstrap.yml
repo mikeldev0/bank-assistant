@@ -43,13 +43,17 @@ jobs:
           uv sync --locked --project backend
           npm --prefix frontend run format
           uv run --project backend ruff format --config backend/pyproject.toml backend evaluations scripts
-      - name: Commit only the exact locally reviewed source tree
+      - name: Commit reviewed source without modifying workflows
         run: |
           git add -A
           git diff --cached --check
           actual=$(git write-tree)
-          echo "Reviewed tree: $actual"
+          echo "Reviewed delivery tree: $actual"
           test "$actual" = '11d6d6157233db2764f2be0f2ce8691127f3bfbc'
+          # Workflow edits require a separately authorized GitHub connection.
+          # This runner commits only source and tooling files, never workflows.
+          git restore --source=HEAD --staged --worktree -- .github/workflows/ci.yml .github/workflows/quality-bootstrap.yml
+          test -z "$(git diff --cached --name-only -- .github/workflows)"
           git diff --cached --stat
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'ci: enforce Oxlint, Oxfmt and Python complexity and formatting gates'
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'refactor: apply Oxc tooling and fix complexity and formatting findings'
           git push origin HEAD:refs/heads/fix/assessment-audit-2026-09-08
