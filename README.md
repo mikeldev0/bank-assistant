@@ -582,21 +582,11 @@ There is no invented private chat/write endpoint or Widget API substitute.
 
 ---
 
-## AIFindr native component
+## AIFindr approval UI
 
-The native **Review a simulated MCP transfer** UI Component records a review request.
+Playground returns the authoritative `review_url` supplied by the MCP. Opening it displays the reusable Next.js `TransferReview` component, where an authenticated reviewer explicitly accepts or rejects the proposal using a server-side reviewer credential.
 
-Its form does **not** provide the authenticated decision callback used by the authoritative approval flow.
-
-Actual acceptance or rejection uses the reusable `TransferReview` component in Next.js with:
-
-- the authoritative `review_url`
-- the authenticated human session
-- the server-side reviewer credential
-
-A native lead-form submission is therefore **not equivalent to transfer authorization**.
-
-Use synthetic identity values when testing the native form.
+Native inline form rendering is outside the final agreed scope. A native lead-form submission does not authorize a transfer.
 
 ---
 
