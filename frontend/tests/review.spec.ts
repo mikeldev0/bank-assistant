@@ -99,7 +99,7 @@ test("rejecting needs no confirmation checkbox and can never execute", async ({ 
   await review(page, proposal.id);
   await expect(page.getByRole("checkbox")).not.toBeChecked();
   await page.getByRole("button", { name: "Rechazar propuesta" }).click();
-  await expect(page.getByText("Acci\u00f3n rechazada")).toBeVisible();
+  await expect(page.getByLabel("Detalle de acci\u00f3n").getByText("Acci\u00f3n rechazada")).toBeVisible();
   const rejected = await readAction(request, proposal.id);
   expect(rejected.status).toBe("rejected");
   expect(rejected.audit?.map(({ event, actor }) => [event, actor])).toEqual([
