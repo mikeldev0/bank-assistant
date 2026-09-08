@@ -49,7 +49,7 @@ jobs:
           git diff --cached --check
           actual=$(git write-tree)
           echo "Reviewed tree: $actual"
-          test "$actual" = '1e2d396f8ce5098346e8e7626296c8c5ad992ffc'
+          test "$actual" = '11d6d6157233db2764f2be0f2ce8691127f3bfbc'
           git diff --cached --stat
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'ci: enforce Oxlint, Oxfmt and Python complexity and formatting gates'
           git push origin HEAD:refs/heads/fix/assessment-audit-2026-09-08
