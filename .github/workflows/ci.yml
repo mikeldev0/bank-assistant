@@ -28,8 +28,8 @@ jobs:
           python-version: '3.12'
       - run: uv sync --locked --project backend
       - run: uv run --project backend pytest backend/tests -q
-      - run: uv run --project backend ruff check backend
-      - run: uv run --project backend ruff check --config backend/pyproject.toml evaluations scripts/check_aifindr.py scripts/check_integration.py
+      - run: uv run --project backend ruff check --config backend/pyproject.toml backend evaluations scripts
+      - run: uv run --project backend python scripts/benchmark.py
       - run: npm ci
         working-directory: frontend
       - run: npm run lint && npm run build && npm run typecheck

@@ -53,6 +53,7 @@ def save(path, value):
 
 def gateway_url(url):
     parts = urlsplit(url)
+    _ = parts.port  # Reject invalid or out-of-range ports before attaching credentials.
     local = parts.hostname in {"127.0.0.1", "localhost", "::1"}
     if (parts.scheme != "https" and not (local and parts.scheme == "http")) or not parts.hostname:
         raise ValueError("MCP requires HTTPS except on loopback")

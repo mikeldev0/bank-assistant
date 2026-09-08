@@ -14,7 +14,7 @@ import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
-from urllib.parse import unquote, urlencode, urlsplit
+from urllib.parse import unquote_plus, urlencode, urlsplit
 
 from mcp.server.auth.handlers.token import TokenHandler
 from mcp.server.auth.middleware.client_auth import AuthenticationError, ClientAuthenticator
@@ -36,10 +36,11 @@ CALLBACK_ORIGINS = {"https://api-dev.saas.aifindr.ai", "https://hub-dev.aifindr.
 
 
 class OAuthProvider:
-    def __init__(self, path, issuer):
-        self.path, self.issuer = path, issuer.rstrip("/")
+    def __init__(self, path, issuer, subject="assessment-user"):
+        self.path, self.issuer, self.subject = path, issuer.rstrip("/"), subject
         self.resource = self.issuer + "/mcp"
         parts = urlsplit(self.issuer)
+        _ = parts.port
         if parts.scheme != "https" and not (
             parts.scheme == "http" and parts.hostname in {"127.0.0.1", "localhost"}
         ):
@@ -69,7 +70,7 @@ class OAuthProvider:
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 if cleanup:
-                    db.execute("DELETE FROM oauth WHERE expires < ?", (time.time(),))
+                    db.execute("DELETE FROM oauth WHERE expires <= ?", (time.time(),))
                 yield db
         finally:
             db.close()
@@ -150,7 +151,7 @@ class OAuthProvider:
                 redirect_uri=params["redirect_uri"],
                 redirect_uri_provided_explicitly=params["redirect_uri_provided_explicitly"],
                 resource=self.resource,
-                subject="assessment-user",
+                subject=self.subject,
             )
             self.put(
                 db,
@@ -200,84 +201,94 @@ class OAuthProvider:
     async def load_authorization_code(self, client, authorization_code):
         with self.db() as db:
             data = self.get(db, "code", authorization_code)
-        if not data or data["client_id"] != client.client_id:
+        if not self.valid_grant(data, client.client_id):
             return None
         return AuthorizationCode(code=authorization_code, **data)
 
-    def issue(self, db, client_id, scopes, family=None):
+    def valid_grant(self, data, client_id=None):
+        return bool(
+            data
+            and data.get("resource") == self.resource
+            and data.get("subject") == self.subject
+            and data.get("expires_at", 0) > time.time()
+            and (client_id is None or data.get("client_id") == client_id)
+        )
+
+    def issue(self, db, client_id, scopes, family=None, refresh_expiry=None):
         family = family or secrets.token_hex(16)
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-        expires = int(time.time()) + 3600
-        self.put(
-            db,
-            "access",
-            access,
-            {
-                "client_id": client_id,
-                "scopes": scopes,
-                "expires_at": expires,
-                "resource": self.resource,
-                "subject": "assessment-user",
-            },
-            expires,
-            family,
-        )
-        refresh_expiry = int(time.time()) + 86400
-        self.put(
-            db,
-            "refresh",
-            refresh,
-            {
-                "client_id": client_id,
-                "scopes": scopes,
-                "expires_at": refresh_expiry,
-                "subject": "assessment-user",
-            },
-            refresh_expiry,
-            family,
-        )
+        now = int(time.time())
+        # Rotation never extends the original family's absolute lifetime.
+        refresh_expiry = refresh_expiry or now + 86400
+        expires = min(now + 3600, refresh_expiry)
+        grant = {
+            "client_id": client_id,
+            "scopes": scopes,
+            "resource": self.resource,
+            "subject": self.subject,
+        }
+        self.put(db, "access", access, {**grant, "expires_at": expires}, expires, family)
+        self.put(db, "refresh", refresh, {**grant, "expires_at": refresh_expiry}, refresh_expiry, family)
         return OAuthToken(
             access_token=access,
             refresh_token=refresh,
             token_type="Bearer",
-            expires_in=3600,
+            expires_in=expires - now,
             scope=" ".join(scopes),
         )
 
     async def exchange_authorization_code(self, client, authorization_code):
         with self.db() as db:
             data = self.get(db, "code", authorization_code.code)
-            if not data or data["client_id"] != client.client_id:
-                raise TokenError("invalid_grant", "Code expired or already consumed")
+            if not self.valid_grant(data, client.client_id):
+                raise TokenError("invalid_grant", "Code expired, consumed or bound to another resource")
             db.execute(
                 "DELETE FROM oauth WHERE kind='code' AND key=?", (self.hashed(authorization_code.code),)
             )
             return self.issue(db, client.client_id, data["scopes"])
 
+    def invalidate_refresh_replay(self, db, client_id, token):
+        used = self.get(db, "used_refresh", token)
+        if not self.valid_grant(used, client_id):
+            return False
+        row = db.execute(
+            "SELECT family FROM oauth WHERE kind='used_refresh' AND key=?", (self.hashed(token),)
+        ).fetchone()
+        # Do not raise inside this transaction: the security revocation must
+        # commit even though the caller subsequently returns invalid_grant.
+        db.execute("DELETE FROM oauth WHERE family=?", (row["family"],))
+        return True
+
     async def load_refresh_token(self, client, refresh_token):
         with self.db() as db:
+            if self.invalidate_refresh_replay(db, client.client_id, refresh_token):
+                return None
             data = self.get(db, "refresh", refresh_token)
-        return (
-            RefreshToken(token=refresh_token, **data)
-            if data and data["client_id"] == client.client_id
-            else None
-        )
+        return RefreshToken(token=refresh_token, **data) if self.valid_grant(data, client.client_id) else None
 
     async def exchange_refresh_token(self, client, refresh_token, scopes):
+        issued = None
         with self.db() as db:
+            replay = self.invalidate_refresh_replay(db, client.client_id, refresh_token.token)
             data = self.get(db, "refresh", refresh_token.token)
-            if not data or data["client_id"] != client.client_id or not set(scopes) <= set(data["scopes"]):
-                raise TokenError("invalid_grant", "Refresh token expired, consumed or scope invalid")
-            family = db.execute(
-                "SELECT family FROM oauth WHERE kind='refresh' AND key=?", (self.hashed(refresh_token.token),)
-            ).fetchone()[0]
-            db.execute("DELETE FROM oauth WHERE family=?", (family,))
-            return self.issue(db, client.client_id, scopes, family)
+            if not replay and self.valid_grant(data, client.client_id) and set(scopes) <= set(data["scopes"]):
+                family = db.execute(
+                    "SELECT family FROM oauth WHERE kind='refresh' AND key=?", (self.hashed(refresh_token.token),)
+                ).fetchone()[0]
+                db.execute(
+                    "UPDATE oauth SET kind='used_refresh' WHERE kind='refresh' AND key=?",
+                    (self.hashed(refresh_token.token),),
+                )
+                db.execute("DELETE FROM oauth WHERE family=? AND kind='access'", (family,))
+                issued = self.issue(db, client.client_id, scopes, family, data["expires_at"])
+        if issued is None:
+            raise TokenError("invalid_grant", "Refresh token expired, replayed or grant invalid")
+        return issued
 
     async def load_access_token(self, token):
         with self.db() as db:
             data = self.get(db, "access", token)
-        if not data or data["resource"] != self.resource or SCOPE not in data["scopes"]:
+        if not self.valid_grant(data) or SCOPE not in data["scopes"]:
             return None
         return AccessToken(token=token, **data)
 
@@ -322,7 +333,7 @@ class OAuthProvider:
         try:
             credentials = base64.b64decode(header[6:], validate=True).decode("utf-8")
             client_id, _ = credentials.split(":", 1)
-            client_id = unquote(client_id)
+            client_id = unquote_plus(client_id)
             if not client_id:
                 raise ValueError("Empty client")
         except (ValueError, UnicodeDecodeError, binascii.Error) as exc:
@@ -362,7 +373,7 @@ def main():
     settings = Settings()
     if not settings.oauth_issuer_url:
         parser.exit(1, "Configure OAUTH_ISSUER_URL first\n")
-    provider = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url)
+    provider = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url, settings.owner_id)
     provider.approve(args.request_id)
     print("OAuth connection approved for proposal/status only. No transfer has been confirmed.")
 

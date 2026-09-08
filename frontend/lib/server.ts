@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { SESSION_TTL_MS, signSession, verifySession } from "@/lib/session";
 
 function required(name: string): string {
   const value = process.env[name];
@@ -13,36 +14,18 @@ export function passwordMatches(value: string) {
   return timingSafeEqual(hash(value), hash(required("REVIEW_PASSWORD")));
 }
 export async function startSession() {
-  const expires = String(Date.now() + 8 * 60 * 60 * 1000);
-  const signature = createHmac("sha256", required("SESSION_SECRET"))
-    .update(expires)
-    .digest("hex");
-  (await cookies()).set("review_session", `${expires}.${signature}`, {
+  (await cookies()).set("review_session", signSession(required("SESSION_SECRET")), {
     httpOnly: true,
     sameSite: "strict",
     secure: process.env.COOKIE_SECURE !== "false",
     path: "/",
-    maxAge: 8 * 60 * 60,
+    maxAge: SESSION_TTL_MS / 1000,
   });
 }
 export async function authenticated() {
   const value = (await cookies()).get("review_session")?.value;
   if (!value) return false;
-  const [expires, signature] = value.split(".");
-  if (
-    !expires ||
-    !signature ||
-    !/^\d+$/.test(expires) ||
-    Date.now() > Number(expires)
-  )
-    return false;
-  const expected = createHmac("sha256", required("SESSION_SECRET"))
-    .update(expires)
-    .digest("hex");
-  return (
-    signature.length === expected.length &&
-    timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-  );
+  return verifySession(value, required("SESSION_SECRET"));
 }
 export async function api<T>(path: string, body?: unknown): Promise<T> {
   if (!(await authenticated()))

@@ -1,4 +1,5 @@
 import { authenticated, api } from "@/lib/server";
+import { isActionId } from "@/lib/validation";
 import type { Transfer } from "@/lib/types";
 import { Dashboard } from "@/components/dashboard";
 import { Login } from "@/components/login";
@@ -16,7 +17,7 @@ export default async function Page({
   try {
     actions = await api<Transfer[]>("/actions");
     if (action !== undefined) {
-      if (typeof action !== "string" || !/^[0-9a-f-]{36}$/.test(action)) {
+      if (!isActionId(action)) {
         error = "El enlace de revisión no contiene una referencia válida.";
       } else {
         selected = await api<Transfer>(`/actions/${action}`);

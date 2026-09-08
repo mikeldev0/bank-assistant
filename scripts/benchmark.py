@@ -27,4 +27,5 @@ with tempfile.TemporaryDirectory() as directory:
               "median_ms": round(statistics.median(samples), 3), "p95_ms": round(sorted(samples)[94], 3),
               "concurrent_confirmation_retries": 32,
               "execution_events_for_retried_action": sum(e["event"] == "executed" for e in store.get("benchmark", a["id"])["audit"])}
+    assert report["execution_events_for_retried_action"] == 1, "Repeated confirmation duplicated execution"
     print(json.dumps(report, indent=2))

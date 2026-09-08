@@ -1,10 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
-from secrets import compare_digest
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, Header, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from mcp.server import MCPServer
 from mcp.server.auth.routes import create_auth_routes, create_protected_resource_routes
@@ -16,14 +15,15 @@ from starlette.responses import Response
 
 from app.domain import DomainError, Proposal, Store
 from app.oauth import SCOPE, OAuthProvider
+from app.security import TOKEN_PATTERN, bearer_token, token_matches
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_path: str = "actions.db"
-    mcp_token: str = Field(min_length=32)
-    reviewer_token: str = Field(min_length=32)
-    owner_id: str = "assessment-user"
+    mcp_token: str = Field(min_length=32, max_length=256, pattern=TOKEN_PATTERN)
+    reviewer_token: str = Field(min_length=32, max_length=256, pattern=TOKEN_PATTERN)
+    owner_id: str = Field(default="assessment-user", min_length=1, max_length=128)
     confirmation_ttl: int = Field(default=600, ge=1, le=3600)
     mcp_allowed_hosts: list[str] = ["localhost:*", "127.0.0.1:*"]
     oauth_issuer_url: str | None = None
@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         if self.mcp_token == self.reviewer_token:
             raise ValueError("MCP and reviewer must have different credentials")
         review = urlsplit(self.review_base_url)
+        _ = review.port  # Validate malformed/out-of-range ports at startup.
         if (review.scheme != "https" and not
             (review.scheme == "http" and review.hostname in {"localhost", "127.0.0.1"})) or (
             not review.hostname or review.username or review.password or review.query or review.fragment
@@ -65,15 +66,9 @@ class MCPAuth:
             await send(message)
 
         if scope["type"] == "http":
-            headers = dict(scope["headers"])
-            expected = f"Bearer {self.token}".encode()
-            if not compare_digest(headers.get(b"authorization", b""), expected):
-                auth = headers.get(b"authorization", b"").decode("latin1")
-                verified = (
-                    await self.oauth.load_access_token(auth[7:])
-                    if self.oauth and auth.startswith("Bearer ")
-                    else None
-                )
+            token = bearer_token(Request(scope, receive).headers)
+            if not token_matches(token, self.token):
+                verified = await self.oauth.load_access_token(token) if self.oauth and token else None
                 if verified is None:
                     challenge = (
                         {
@@ -153,7 +148,7 @@ def create_app(settings: Settings | None = None):
     if settings.oauth_issuer_url:
         from starlette.routing import Route
 
-        oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url)
+        oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url, settings.owner_id)
         app.state.oauth = oauth
         app.router.routes.append(Route("/token", oauth.token_request, methods=["POST"]))
         app.router.routes.append(Route("/revoke", oauth.revoke_request, methods=["POST"]))
@@ -183,8 +178,8 @@ def create_app(settings: Settings | None = None):
     async def domain_error(request: Request, exc: DomainError):
         return JSONResponse({"detail": exc.message}, status_code=exc.status)
 
-    def reviewer(authorization: str = Header(default="")):
-        if not compare_digest(authorization, f"Bearer {settings.reviewer_token}"):
+    def reviewer(request: Request):
+        if not token_matches(bearer_token(request.headers), settings.reviewer_token):
             raise DomainError("No autorizado.", 401)
         return settings.owner_id
 

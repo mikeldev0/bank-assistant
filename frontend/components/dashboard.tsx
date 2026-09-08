@@ -61,22 +61,23 @@ export function Dashboard({
     run(async () => setSelected(await getTransfer(action.id)));
   }
   function decision(value: "confirm" | "reject") {
-    if (!selected) return;
+    if (!selected || pending || (value === "confirm" && !checked)) return;
     run(async () => {
-      await decide(selected.id, selected.fingerprint, value);
-      setActions(await refreshTransfers());
-      setSelected(await getTransfer(selected.id));
+      const result = await decide(selected.id, selected.fingerprint, value);
+      setSelected(result);
+      setActions((current) => current.map((action) => action.id === result.id ? result : action));
       setChecked(false);
       setNotice(
         value === "confirm"
           ? "Transferencia simulada correctamente. No se ha movido dinero real."
           : "Acción rechazada.",
       );
+      // Failure to refresh the audit cannot make a committed decision pending again.
+      setSelected(await getTransfer(result.id));
+      setActions(await refreshTransfers());
     });
   }
-  const waiting = actions.filter(
-    (a) => a.status === "pending" && a.expires_at * 1000 > now,
-  );
+  const waiting = actions.filter((a) => a.status === "pending");
   const visible = actions.filter(
     (a) =>
       filter === "all" ||
