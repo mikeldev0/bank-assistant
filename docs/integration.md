@@ -3,11 +3,12 @@
 ## Contrato del gateway
 
 - Transporte: Streamable HTTP, `https://<host-publico>/mcp`.
-- Cabecera: `Authorization: Bearer <MCP_TOKEN>`.
+- AIFindr DEV: OAuth con scope `transfers:propose-read`; ver [oauth.md](oauth.md).
+- Diagnósticos locales: `Authorization: Bearer <MCP_TOKEN>`.
 - Tools permitidas: `propose_transfer`, `get_transfer_status`.
 - No compartir `REVIEWER_TOKEN`, `REVIEW_PASSWORD` ni `SESSION_SECRET` con AIFindr.
 - Mantener workflow **Agent**. Configurar el servidor en Settings → Custom MCPs y limitar `allowedTools` a las dos herramientas anteriores.
-- El token de MCP es una credencial de servicio preacordada. No se implementa discovery OAuth; si el portal exige OAuth en vez de headers configurables, será necesaria esa adaptación. El MCP remoto de administración de AIFindr es otro servicio distinto.
+- OAuth está implementado y conectado en DEV. Se verificaron discovery, las dos herramientas y una propuesta desde Playground. El MCP remoto de administración de AIFindr es otro servicio distinto.
 
 ## HTTPS temporal
 
@@ -23,7 +24,7 @@ Copia el hostname asignado en `MCP_ALLOWED_HOSTS` de `backend/.env`, conservando
 MCP_ALLOWED_HOSTS=["127.0.0.1:*","localhost:*","HOST-ASIGNADO.trycloudflare.com"]
 ```
 
-Reinicia el backend. No desactives la protección DNS rebinding. Configura en AIFindr la URL completa terminada en `/mcp` y su token. Verifica primero el transporte:
+Reinicia el backend. No desactives la protección DNS rebinding. Configura `OAUTH_ISSUER_URL`, registra en AIFindr la URL completa terminada en `/mcp` y completa OAuth. Verifica primero el transporte:
 
 ```bash
 cd backend
@@ -44,6 +45,6 @@ Un túnel expone el puerto completo: las rutas de revisión siguen necesitando s
 
 ## Private API
 
-La documentación pública de `/api/widget/...` no satisface el requisito de Private API. El contrato privado adjunto debe verificarse antes de implementar llamadas, cambios de prompt o ejecución de evaluaciones. La clave disponible por sí sola no describe esos endpoints. No se ha inventado un adaptador ni declarado una conexión sin probar.
+Se verificaron por lectura autenticada los endpoints documentados `GET /api/private/projects/{projectId}/conversations` y `GET /api/private/conversations/{id}` en `api-dev.saas.aifindr.ai`, con Bearer y X-Organization-Id. Los scripts guardan conversaciones únicamente en `private/`. La configuración y las evaluaciones se realizan por la UI del Hub; no se han inventado endpoints privados de escritura ni se ha sustituido Private API por Widget API.
 
 Fuentes: [documentación de AIFindr](https://docs.aifindr.ai/docs/api/ai-findr-api/), [SDK MCP oficial](https://github.com/modelcontextprotocol/python-sdk), [Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).

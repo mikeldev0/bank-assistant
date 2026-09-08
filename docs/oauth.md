@@ -31,4 +31,21 @@ optional secret for public clients, working around the SDK 2.1.1 revocation mode
 Tests cover wrong PKCE, forbidden callbacks, code replay, rotation, revocation,
 audience rejection and the separation from transfer review credentials.
 
+AIFindr's registered client uses `client_secret_basic`. A small token-request
+adapter supplies the client ID from the Basic header when the body omits it
+(RFC 6749 permits this); the SDK still authenticates the original secret and
+checks PKCE and grant ownership. Duplicate parameters and conflicting identities
+are rejected. Public and Basic clients are exercised through authorization,
+refresh and revocation tests.
+
+The gateway uses stateless JSON replies and does not offer standalone GET SSE
+notifications. Authenticated `GET /mcp` returns 405 after Host/Origin validation,
+as allowed by the Streamable HTTP specification. This avoids a buffering proxy
+leaving discovery waiting on an idle stream. HTTP diagnostics log only method
+and status, never headers, query strings or payloads.
+
+Live DEV verification on 8 September 2026: OAuth connected, both tools discovered
+and explicitly enabled; the Playground agent created a real persisted **simulated**
+proposal. The local approval command grants MCP access, not transfer acceptance.
+
 Reference: [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).

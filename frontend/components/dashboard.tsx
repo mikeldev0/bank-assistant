@@ -2,53 +2,33 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   Activity,
-  ArrowDownLeft,
   ArrowUpRight,
   Check,
-  ChevronRight,
   Clock3,
+  ChevronRight,
   History,
   LayoutDashboard,
   LogOut,
   RefreshCw,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { decide, getTransfer, logout, refreshTransfers } from "@/app/actions";
+import { TransferReview } from "@/components/transfer-review";
+import { labels, money, date } from "@/lib/format";
 import type { Transfer } from "@/lib/types";
-const labels = {
-  pending: "Por confirmar",
-  executed: "Simulada",
-  rejected: "Rechazada",
-  expired: "Caducada",
-};
-const events: Record<string, string> = {
-  proposed: "El agente propuso la acción",
-  confirmed: "Confirmación humana recibida",
-  executed: "Simulación completada",
-  rejected: "Acción rechazada",
-  expired: "Plazo de confirmación agotado",
-};
-const money = (cents: number) =>
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(
-    cents / 100,
-  );
-const date = (value: number) =>
-  new Date(value * 1000).toLocaleString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 export function Dashboard({
   initial,
   initialError,
+  initialSelection,
 }: {
   initial: Transfer[];
   initialError?: string;
+  initialSelection?: Transfer;
 }) {
   const [actions, setActions] = useState(initial),
-    [selected, setSelected] = useState<Transfer | null>(null);
+    [selected, setSelected] = useState<Transfer | null>(
+      initialSelection ?? null,
+    );
   const [filter, setFilter] = useState("all"),
     [checked, setChecked] = useState(false);
   const [error, setError] = useState(initialError),
@@ -306,104 +286,15 @@ export function Dashboard({
                 ))
               )}
             </div>
-            <aside className="detail" aria-label="Detalle de acción">
-              {selected ? (
-                <>
-                  <div className="detail-title">
-                    <span className="eyebrow">REVISIÓN DE TRANSFERENCIA</span>
-                    <button
-                      className="icon-button"
-                      aria-label="Cerrar detalle"
-                      onClick={() => setSelected(null)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <h2>{money(selected.amount_cents)}</h2>
-                  <span className={`badge ${selected.status}`}>
-                    {labels[selected.status]}
-                  </span>
-                  <dl>
-                    <div>
-                      <dt>Beneficiario</dt>
-                      <dd>{selected.recipient}</dd>
-                    </div>
-                    <div>
-                      <dt>Cuenta de prueba</dt>
-                      <dd>{selected.destination}</dd>
-                    </div>
-                    <div>
-                      <dt>Concepto</dt>
-                      <dd>{selected.concept}</dd>
-                    </div>
-                    <div>
-                      <dt>Referencia</dt>
-                      <dd className="mono">{selected.id.slice(0, 8)}</dd>
-                    </div>
-                  </dl>
-                  {selected.status === "pending" && (
-                    <>
-                      <p className="expires">
-                        <Clock3 size={14} />
-                        {remaining
-                          ? `Caduca en ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`
-                          : "Confirmación caducada"}
-                      </p>
-                      <label className="confirmation">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => setChecked(e.target.checked)}
-                        />
-                        He revisado el importe y el destinatario. Confirmo esta
-                        simulación.
-                      </label>
-                      <button
-                        className="confirm-button"
-                        disabled={!checked || pending || !remaining}
-                        onClick={() => decision("confirm")}
-                      >
-                        <ShieldCheck size={17} />
-                        Confirmar simulación
-                      </button>
-                      <button
-                        className="reject-button"
-                        disabled={pending || !remaining}
-                        onClick={() => decision("reject")}
-                      >
-                        Rechazar propuesta
-                      </button>
-                    </>
-                  )}
-                  <div className="audit">
-                    <h3>Trazabilidad</h3>
-                    {selected.audit?.map((event, i) => (
-                      <div key={i}>
-                        <span className="audit-dot" />
-                        <p>
-                          {events[event.event] ?? event.event}
-                          <small>
-                            {date(event.at)} · {event.actor}
-                          </small>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="detail-empty">
-                  <ArrowDownLeft size={25} />
-                  <h3>Los detalles importan.</h3>
-                  <p>
-                    Selecciona una acción para revisar sus datos y consultar su
-                    trazabilidad.
-                  </p>
-                  <div>
-                    <ShieldCheck size={16} /> Verificación antes de ejecución
-                  </div>
-                </div>
-              )}
-            </aside>
+            <TransferReview
+              selected={selected}
+              checked={checked}
+              pending={pending}
+              remaining={remaining}
+              onClose={() => setSelected(null)}
+              onChecked={setChecked}
+              onDecision={decision}
+            />
           </section>
           <footer>
             <span>

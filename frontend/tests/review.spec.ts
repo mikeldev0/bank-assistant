@@ -16,7 +16,7 @@ const front = readEnv(".env.local"),
 test("MCP proposal → human review → simulated execution; mobile has no overflow", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const response = await request.post("http://127.0.0.1:8000/mcp", {
     headers: {
       Authorization: `Bearer ${back.MCP_TOKEN}`,
@@ -41,16 +41,22 @@ test("MCP proposal → human review → simulated execution; mobile has no overf
   expect(response.ok()).toBeTruthy();
   const result = await response.json();
   expect(result.result.isError).toBeFalsy();
-  await page.goto("/");
+  const proposal =
+    result.result.structuredContent ??
+    JSON.parse(result.result.content[0].text);
+  const actionId = process.env.REVIEW_ACTION_ID ?? proposal.id;
+  await page.goto(`/?action=${actionId}`);
+  await expect(page.getByLabel("Detalle de acción")).toHaveCount(0);
   await page.getByLabel("Contraseña").fill(front.REVIEW_PASSWORD);
   await page.getByRole("button", { name: "Entrar al espacio" }).click();
   await expect(
     page.getByRole("heading", { name: "Centro de control." }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: /Taylor Demo/ })
-    .first()
-    .click();
+  await expect(
+    page
+      .getByLabel("Detalle de acción")
+      .getByText(actionId.slice(0, 8), { exact: true }),
+  ).toBeVisible();
   const confirm = page.getByRole("button", { name: "Confirmar simulación" });
   await expect(confirm).toBeDisabled();
   await page.getByRole("checkbox").check();
@@ -59,7 +65,7 @@ test("MCP proposal → human review → simulated execution; mobile has no overf
   await expect(page.getByText("Simulación completada")).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
-    path: "../docs/dashboard-desktop.png",
+    path: testInfo.outputPath("dashboard-desktop.png"),
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -73,7 +79,7 @@ test("MCP proposal → human review → simulated execution; mobile has no overf
   ).toBeTruthy();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
-    path: "../docs/dashboard-mobile.png",
+    path: testInfo.outputPath("dashboard-mobile.png"),
     fullPage: true,
   });
 });

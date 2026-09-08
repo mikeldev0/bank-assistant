@@ -2,13 +2,15 @@ import base64
 import hashlib
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import Settings, create_app
 from app.oauth import SCOPE
 
 
-def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
+@pytest.mark.parametrize("auth_method", ["none", "client_secret_basic"])
+def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path, auth_method):
     settings = Settings(
         database_path=str(tmp_path / "actions.db"),
         mcp_token="m" * 32,
@@ -35,7 +37,7 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
             "/register",
             json={
                 "redirect_uris": [callback],
-                "token_endpoint_auth_method": "none",
+                "token_endpoint_auth_method": auth_method,
                 "grant_types": ["authorization_code", "refresh_token"],
                 "response_types": ["code"],
                 "scope": SCOPE,
@@ -43,6 +45,12 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
         )
         assert registration.status_code == 201, registration.text
         cid = registration.json()["client_id"]
+        def token_post(path, data):
+            if auth_method == "client_secret_basic":
+                data = {key: value for key, value in data.items() if key != "client_id"}
+                return client.post(path, data=data, auth=(cid, registration.json()["client_secret"]))
+            return client.post(path, data=data)
+
         verifier = "v" * 64
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
         params = {
@@ -78,16 +86,24 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
             "code_verifier": verifier,
             "resource": "https://gateway.test/mcp",
         }
-        assert client.post("/token", data={**form, "code_verifier": "bad"}).status_code == 400
-        issued = client.post("/token", data=form)
+        assert token_post("/token", data={**form, "code_verifier": "bad"}).status_code == 400
+        if auth_method == "client_secret_basic":
+            no_id = {key: value for key, value in form.items() if key != "client_id"}
+            assert client.post("/token", data=no_id, auth=(cid, "wrong")).status_code == 401
+            assert client.post("/token", data={**form, "client_id": "other"},
+                               auth=(cid, registration.json()["client_secret"])).status_code == 401
+        assert token_post("/token", data={**form, "resource": "https://other.test/mcp"}).status_code == 400
+        issued = token_post("/token", data=form)
         assert issued.status_code == 200, issued.text
         tokens = issued.json()
-        assert client.post("/token", data=form).status_code == 400
+        assert token_post("/token", data=form).status_code == 400
         headers = {
             "Authorization": "Bearer " + tokens["access_token"],
             "Accept": "application/json, text/event-stream",
         }
         assert client.get("/actions", headers=headers).status_code == 401
+        assert client.get("/mcp", headers=headers).status_code == 405
+        assert client.get("/mcp", headers={**headers, "Origin": "https://untrusted.test"}).status_code == 403
         initialized = client.post(
             "/mcp",
             headers=headers,
@@ -104,14 +120,14 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path):
         )
         assert initialized.status_code == 200
         refresh = {"grant_type": "refresh_token", "client_id": cid, "refresh_token": tokens["refresh_token"]}
-        rotated = client.post("/token", data=refresh)
+        rotated = token_post("/token", data=refresh)
         assert rotated.status_code == 200, rotated.text
-        assert client.post("/token", data=refresh).status_code == 400
+        assert token_post("/token", data=refresh).status_code == 400
         assert client.post("/mcp", headers=headers, json={}).status_code == 401
-        revoke = client.post("/revoke", data={"client_id": cid, "token": rotated.json()["access_token"]})
+        revoke = token_post("/revoke", data={"client_id": cid, "token": rotated.json()["access_token"]})
         assert revoke.status_code == 200
         assert (
-            client.post(
+            token_post(
                 "/token", data={**refresh, "refresh_token": rotated.json()["refresh_token"]}
             ).status_code
             == 400

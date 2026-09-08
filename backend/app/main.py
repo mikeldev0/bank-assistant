@@ -1,13 +1,15 @@
+import logging
 from contextlib import asynccontextmanager
 from secrets import compare_digest
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from mcp.server import MCPServer
 from mcp.server.auth.routes import create_auth_routes, create_protected_resource_routes
 from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOptions
-from mcp.server.transport_security import TransportSecuritySettings
+from mcp.server.transport_security import TransportSecurityMiddleware, TransportSecuritySettings
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.responses import Response
@@ -26,11 +28,19 @@ class Settings(BaseSettings):
     mcp_allowed_hosts: list[str] = ["localhost:*", "127.0.0.1:*"]
     oauth_issuer_url: str | None = None
     oauth_database_path: str = "oauth.db"
+    review_base_url: str = "http://127.0.0.1:3000"
 
     @model_validator(mode="after")
     def separate_roles(self):
         if self.mcp_token == self.reviewer_token:
             raise ValueError("MCP and reviewer must have different credentials")
+        review = urlsplit(self.review_base_url)
+        if (review.scheme != "https" and not
+            (review.scheme == "http" and review.hostname in {"localhost", "127.0.0.1"})) or (
+            not review.hostname or review.username or review.password or review.query or review.fragment
+            or review.path not in {"", "/"}
+        ):
+            raise ValueError("Review URL must be a clean HTTPS origin or loopback HTTP")
         return self
 
 
@@ -41,11 +51,19 @@ class Decision(BaseModel):
 
 
 class MCPAuth:
-    def __init__(self, app, token, oauth=None):
+    def __init__(self, app, token, security, oauth=None):
         self.app, self.token = app, token
+        self.security = TransportSecurityMiddleware(security)
         self.oauth = oauth
 
     async def __call__(self, scope, receive, send):
+        async def observed_send(message):
+            if message["type"] == "http.response.start":
+                logging.getLogger("uvicorn.error").info(
+                    "MCP transport %s status=%s", scope.get("method"), message["status"]
+                )
+            await send(message)
+
         if scope["type"] == "http":
             headers = dict(scope["headers"])
             expected = f"Bearer {self.token}".encode()
@@ -68,14 +86,23 @@ class MCPAuth:
                         if self.oauth
                         else {}
                     )
-                    await Response(status_code=401, headers=challenge)(scope, receive, send)
+                    await Response(status_code=401, headers=challenge)(scope, receive, observed_send)
                     return
-        await self.app(scope, receive, send)
+            if scope.get("method") == "GET" and scope.get("path") == "/mcp":
+                # This stateless request/response gateway has no server notifications.
+                # An idle GET SSE stream can stall discovery behind buffering proxies.
+                error = await self.security.validate_request(Request(scope, receive))
+                response = error or Response(status_code=405, headers={"Allow": "POST"})
+                await response(scope, receive, observed_send)
+                return
+        await self.app(scope, receive, observed_send)
 
 
 def create_app(settings: Settings | None = None):
     settings = settings or Settings()
     store = Store(settings.database_path, settings.confirmation_ttl)
+    def review_link(action):
+        return {**action, "review_url": settings.review_base_url.rstrip("/") + "/?action=" + action["id"]}
     mcp = MCPServer(
         "Bank Assistant · Safe Actions",
         instructions="Propose simulated transfers only. A human must confirm in the review UI. Never claim execution before status is executed.",
@@ -90,7 +117,7 @@ def create_app(settings: Settings | None = None):
         idempotency_key: str,
     ) -> dict:
         """Propose a EUR simulation, maximum 100000 cents. Destination must be DEMO-xxxx. Reuse idempotency_key on retries. Cannot confirm or execute."""
-        return store.propose(
+        return review_link(store.propose(
             settings.owner_id,
             Proposal(
                 recipient=recipient,
@@ -99,19 +126,20 @@ def create_app(settings: Settings | None = None):
                 concept=concept,
                 idempotency_key=idempotency_key,
             ),
-        )
+        ))
 
     @mcp.tool()
     def get_transfer_status(action_id: str) -> dict:
         """Read the authoritative status and audit of a simulated transfer."""
-        return store.get(settings.owner_id, action_id)
+        return review_link(store.get(settings.owner_id, action_id))
 
+    security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True, allowed_hosts=settings.mcp_allowed_hosts
+    )
     mcp_app = mcp.streamable_http_app(
         stateless_http=True,
         json_response=True,
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=True, allowed_hosts=settings.mcp_allowed_hosts
-        ),
+        transport_security=security,
     )
 
     @asynccontextmanager
@@ -127,6 +155,7 @@ def create_app(settings: Settings | None = None):
 
         oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url)
         app.state.oauth = oauth
+        app.router.routes.append(Route("/token", oauth.token_request, methods=["POST"]))
         app.router.routes.append(Route("/revoke", oauth.revoke_request, methods=["POST"]))
         app.router.routes.extend(
             create_auth_routes(
@@ -175,5 +204,5 @@ def create_app(settings: Settings | None = None):
     def decide(action_id: str, body: Decision, owner: str = Depends(reviewer)):
         return store.decide(owner, action_id, body.fingerprint, body.decision == "confirm")
 
-    app.mount("/", MCPAuth(mcp_app, settings.mcp_token, oauth))
+    app.mount("/", MCPAuth(mcp_app, settings.mcp_token, security, oauth))
     return app

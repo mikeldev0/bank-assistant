@@ -4,6 +4,8 @@ Single project only. Local approval is separate from transfer confirmation. Toke
 are opaque, expire, are audience-bound and are stored by hash in a private SQLite DB.
 """
 
+import base64
+import binascii
 import hashlib
 import html
 import json
@@ -12,8 +14,9 @@ import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
+from mcp.server.auth.handlers.token import TokenHandler
 from mcp.server.auth.middleware.client_auth import AuthenticationError, ClientAuthenticator
 from mcp.server.auth.provider import (
     AccessToken,
@@ -25,6 +28,7 @@ from mcp.server.auth.provider import (
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
+from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 SCOPE = "transfers:propose-read"
@@ -290,6 +294,7 @@ class OAuthProvider:
         # SDK 2.1.1's revocation model requires client_secret even for public clients.
         # Retain SDK client authentication, but accept RFC 7009's optional secret.
         try:
+            request = await self.normalize_basic_request(request)
             client = await ClientAuthenticator(self).authenticate_request(request)
         except AuthenticationError:
             return Response(status_code=401)
@@ -301,6 +306,48 @@ class OAuthProvider:
         if token and token.client_id == client.client_id:
             await self.revoke_token(token)
         return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+    async def normalize_basic_request(self, request):
+        """SDK 2.1.1 requires body client_id even when RFC 6749 Basic supplies it.
+
+        Supply only that identifier; SDK still verifies the original Basic secret,
+        registration method, PKCE, code ownership, redirect and expiry.
+        """
+        form = await request.form()
+        if any(len(form.getlist(key)) != 1 for key in form):
+            raise AuthenticationError("Duplicate OAuth parameter")
+        header = request.headers.get("authorization", "")
+        if not header.startswith("Basic ") or "client_id" in form:
+            return request
+        try:
+            credentials = base64.b64decode(header[6:], validate=True).decode("utf-8")
+            client_id, _ = credentials.split(":", 1)
+            client_id = unquote(client_id)
+            if not client_id:
+                raise ValueError("Empty client")
+        except (ValueError, UnicodeDecodeError, binascii.Error) as exc:
+            raise AuthenticationError("Invalid Basic authentication") from exc
+        body = urlencode([*form.multi_items(), ("client_id", client_id)]).encode()
+        scope = dict(request.scope)
+        scope["headers"] = [
+            (key, value) for key, value in scope["headers"]
+            if key.lower() not in {b"content-length", b"content-type"}
+        ] + [(b"content-type", b"application/x-www-form-urlencoded"), (b"content-length", str(len(body)).encode())]
+
+        async def receive():
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        return Request(scope, receive)
+
+    async def token_request(self, request):
+        try:
+            request = await self.normalize_basic_request(request)
+        except AuthenticationError:
+            return Response(status_code=401, headers={"Cache-Control": "no-store"})
+        form = await request.form()
+        if form.get("resource") not in (None, self.resource):
+            return Response(status_code=400, headers={"Cache-Control": "no-store"})
+        return await TokenHandler(self, ClientAuthenticator(self)).handle(request)
 
 
 def main():
