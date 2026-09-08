@@ -97,3 +97,32 @@ interaction between the platform's Full output schema and the prompt's two-field
 contract. Use a new version and new execution; preserve these original results.
 The MCP action instructions and review component are a separate Part 2 change,
 not evidence that the grounding experiment improved.
+
+## Second comparison — corrected Variant B v2
+
+A fresh [Control verification](https://hub-dev.aifindr.ai/admin/evaluations/eval_MS6NHiUaFKrdwYJGDMh7CV)
+completed 20/20 with 17 passes. The paired [Variant B v2](https://hub-dev.aifindr.ai/admin/evaluations/eval_QrfLyfxMiY5f4Sqjz9b8DJ)
+completed 20/20 with 18 passes. The model, reasoning, knowledge and judge settings
+were unchanged; MCP was disabled for both runs. The native review-request
+component existed during this pair, unlike the original pair. MCP was re-enabled
+after both completed. All per-case values are retained in the JSON companion.
+
+| Metric | Control verification | Variant B v2 |
+|---|---:|---:|
+| Automatic approvals | 17/20 (85%) | 18/20 (90%) |
+| Duration P50 | 15.6 s | 13.7 s |
+| Duration P95 | 45.8 s | 39.0 s |
+| Average generation | 17.9 s | 16.1 s |
+
+V2 improved handling of the supplied synthetic PIN and the user-asserted TC code;
+it regressed on mortgage documents and retained the thank-you failure. Its
+mortgage response was substantive, fixing the previous blank-answer symptom,
+but still combined documentation requirements across products. The thank-you
+trace included an unnecessary `ragSearch` with query `n/a`; its answer also
+invited further product questions after the user had closed the conversation.
+
+This is a one-case net improvement over the paired control, not evidence of a
+reliable improvement over the original 19/20 baseline. The control's own change
+from 19/20 to 17/20 shows why a single run cannot support a strong performance claim.
+The candidate is preserved as a separate version; these results are not relabeled
+or discarded to hide regressions.

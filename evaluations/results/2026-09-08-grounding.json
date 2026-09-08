@@ -333,5 +333,314 @@
         "tokens_total_displayed": 812
       }
     ]
+  },
+  "control_verification": {
+    "evaluation_id": "eval_MS6NHiUaFKrdwYJGDMh7CV",
+    "url": "https://hub-dev.aifindr.ai/admin/evaluations/eval_MS6NHiUaFKrdwYJGDMh7CV",
+    "prompt": "agent-workflow-version-20260902135127",
+    "passed": 17,
+    "count": 20,
+    "duration_p50_seconds": 15.6,
+    "duration_p95_seconds": 45.8,
+    "average_generation_seconds": 17.9,
+    "total_tool_calls": 18,
+    "tokens_total_displayed_sum": 17977,
+    "cases": [
+      {
+        "case_id": "EG-01",
+        "judge_passed": true,
+        "duration_seconds_displayed": 16.4,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1515
+      },
+      {
+        "case_id": "EG-02",
+        "judge_passed": true,
+        "duration_seconds_displayed": 15.8,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1196
+      },
+      {
+        "case_id": "EG-03",
+        "judge_passed": true,
+        "duration_seconds_displayed": 15.6,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1301
+      },
+      {
+        "case_id": "EG-04",
+        "judge_passed": true,
+        "duration_seconds_displayed": 36.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1009
+      },
+      {
+        "case_id": "EG-05",
+        "judge_passed": true,
+        "duration_seconds_displayed": 24.7,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1393
+      },
+      {
+        "case_id": "EG-06",
+        "judge_passed": true,
+        "duration_seconds_displayed": 45.8,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1167
+      },
+      {
+        "case_id": "EG-07",
+        "judge_passed": true,
+        "duration_seconds_displayed": 9.45,
+        "tool_calls": 1,
+        "tokens_total_displayed": 461
+      },
+      {
+        "case_id": "EG-08",
+        "judge_passed": true,
+        "duration_seconds_displayed": 8.99,
+        "tool_calls": 1,
+        "tokens_total_displayed": 469
+      },
+      {
+        "case_id": "EG-09",
+        "judge_passed": true,
+        "duration_seconds_displayed": 6.93,
+        "tool_calls": 1,
+        "tokens_total_displayed": 295
+      },
+      {
+        "case_id": "EG-10",
+        "judge_passed": false,
+        "duration_seconds_displayed": 6.51,
+        "tool_calls": 1,
+        "tokens_total_displayed": 297
+      },
+      {
+        "case_id": "EG-11",
+        "judge_passed": true,
+        "duration_seconds_displayed": 3.78,
+        "tool_calls": 0,
+        "tokens_total_displayed": 176
+      },
+      {
+        "case_id": "EG-12",
+        "judge_passed": true,
+        "duration_seconds_displayed": 9.55,
+        "tool_calls": 0,
+        "tokens_total_displayed": 178
+      },
+      {
+        "case_id": "EG-13",
+        "judge_passed": true,
+        "duration_seconds_displayed": 30.4,
+        "tool_calls": 1,
+        "tokens_total_displayed": 835
+      },
+      {
+        "case_id": "EG-14",
+        "judge_passed": true,
+        "duration_seconds_displayed": 7.31,
+        "tool_calls": 1,
+        "tokens_total_displayed": 340
+      },
+      {
+        "case_id": "EG-15",
+        "judge_passed": false,
+        "duration_seconds_displayed": 17,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1239
+      },
+      {
+        "case_id": "EG-16",
+        "judge_passed": false,
+        "duration_seconds_displayed": 53,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1116
+      },
+      {
+        "case_id": "EG-17",
+        "judge_passed": true,
+        "duration_seconds_displayed": 10.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 631
+      },
+      {
+        "case_id": "EG-18",
+        "judge_passed": true,
+        "duration_seconds_displayed": 19.6,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1821
+      },
+      {
+        "case_id": "EG-19",
+        "judge_passed": true,
+        "duration_seconds_displayed": 17.2,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1591
+      },
+      {
+        "case_id": "EG-20",
+        "judge_passed": true,
+        "duration_seconds_displayed": 13.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 947
+      }
+    ],
+    "configuration_note": "Same listed evaluation settings; MCP disabled. Native review-request component existed for this verification and the paired v2 run, unlike the original runs."
+  },
+  "variant_b_v2": {
+    "evaluation_id": "eval_QrfLyfxMiY5f4Sqjz9b8DJ",
+    "url": "https://hub-dev.aifindr.ai/admin/evaluations/eval_QrfLyfxMiY5f4Sqjz9b8DJ",
+    "prompt": "evidence-grounded-variant-b-v2-20260908",
+    "passed": 18,
+    "count": 20,
+    "duration_p50_seconds": 13.7,
+    "duration_p95_seconds": 39,
+    "average_generation_seconds": 16.1,
+    "total_tool_calls": 17,
+    "tokens_total_displayed_sum": 14503,
+    "cases": [
+      {
+        "case_id": "EG-01",
+        "judge_passed": true,
+        "duration_seconds_displayed": 13.7,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1227
+      },
+      {
+        "case_id": "EG-02",
+        "judge_passed": true,
+        "duration_seconds_displayed": 15,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1082
+      },
+      {
+        "case_id": "EG-03",
+        "judge_passed": true,
+        "duration_seconds_displayed": 24.2,
+        "tool_calls": 2,
+        "tokens_total_displayed": 1530
+      },
+      {
+        "case_id": "EG-04",
+        "judge_passed": true,
+        "duration_seconds_displayed": 15.4,
+        "tool_calls": 1,
+        "tokens_total_displayed": 861
+      },
+      {
+        "case_id": "EG-05",
+        "judge_passed": false,
+        "duration_seconds_displayed": 16.6,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1217
+      },
+      {
+        "case_id": "EG-06",
+        "judge_passed": true,
+        "duration_seconds_displayed": 10.7,
+        "tool_calls": 1,
+        "tokens_total_displayed": 759
+      },
+      {
+        "case_id": "EG-07",
+        "judge_passed": true,
+        "duration_seconds_displayed": 10.9,
+        "tool_calls": 1,
+        "tokens_total_displayed": 371
+      },
+      {
+        "case_id": "EG-08",
+        "judge_passed": true,
+        "duration_seconds_displayed": 12.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 419
+      },
+      {
+        "case_id": "EG-09",
+        "judge_passed": true,
+        "duration_seconds_displayed": 6.58,
+        "tool_calls": 0,
+        "tokens_total_displayed": 107
+      },
+      {
+        "case_id": "EG-10",
+        "judge_passed": false,
+        "duration_seconds_displayed": 10.7,
+        "tool_calls": 1,
+        "tokens_total_displayed": 246
+      },
+      {
+        "case_id": "EG-11",
+        "judge_passed": true,
+        "duration_seconds_displayed": 4.62,
+        "tool_calls": 0,
+        "tokens_total_displayed": 186
+      },
+      {
+        "case_id": "EG-12",
+        "judge_passed": true,
+        "duration_seconds_displayed": 3.6,
+        "tool_calls": 0,
+        "tokens_total_displayed": 160
+      },
+      {
+        "case_id": "EG-13",
+        "judge_passed": true,
+        "duration_seconds_displayed": 39,
+        "tool_calls": 1,
+        "tokens_total_displayed": 939
+      },
+      {
+        "case_id": "EG-14",
+        "judge_passed": true,
+        "duration_seconds_displayed": 6.62,
+        "tool_calls": 1,
+        "tokens_total_displayed": 304
+      },
+      {
+        "case_id": "EG-15",
+        "judge_passed": true,
+        "duration_seconds_displayed": 37.4,
+        "tool_calls": 1,
+        "tokens_total_displayed": 904
+      },
+      {
+        "case_id": "EG-16",
+        "judge_passed": true,
+        "duration_seconds_displayed": 16,
+        "tool_calls": 1,
+        "tokens_total_displayed": 717
+      },
+      {
+        "case_id": "EG-17",
+        "judge_passed": true,
+        "duration_seconds_displayed": 5.39,
+        "tool_calls": 0,
+        "tokens_total_displayed": 263
+      },
+      {
+        "case_id": "EG-18",
+        "judge_passed": true,
+        "duration_seconds_displayed": 16.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1383
+      },
+      {
+        "case_id": "EG-19",
+        "judge_passed": true,
+        "duration_seconds_displayed": 49.3,
+        "tool_calls": 1,
+        "tokens_total_displayed": 1248
+      },
+      {
+        "case_id": "EG-20",
+        "judge_passed": true,
+        "duration_seconds_displayed": 14.5,
+        "tool_calls": 1,
+        "tokens_total_displayed": 580
+      }
+    ]
   }
 }

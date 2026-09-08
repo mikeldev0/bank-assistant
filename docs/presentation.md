@@ -4,7 +4,7 @@
 
 This submission addresses both the grounding assessment and Challenge B: an agent proposes a simulated transfer, while a separately authenticated reviewer decides whether to execute it. No bank or payment provider is connected.
 
-The implementation and AIFindr OAuth flow have been exercised. Part 1 has a completed 20-case baseline and candidate comparison, but the first candidate regressed. A revised candidate has been saved; it must not be described as an improvement until its evaluation is verified. The native AIFindr review-request form exists, but rendering and submission in Playground remain to be verified.
+The implementation and AIFindr OAuth flow have been exercised. Part 1 has a completed 20-case baseline and candidate comparison, but the first candidate regressed. The revised candidate scored 18/20 against a fresh Control run of 17/20. This does not establish a reliable improvement over the original 19/20 baseline. The native AIFindr review-request form exists, but rendering and submission in Playground remain to be verified.
 
 ## Part 1 — hypothesis, experiment and findings
 
@@ -38,7 +38,7 @@ Backend checks cover replay, conflicting retries, altered proposals, expiration,
 
 The assessment uses one shared reviewer, a single SQLite instance and synchronous simulation. A temporary tunnel must remain running; its address is not a permanent deployment. Real payments would require stronger identity, durable external audit, provider idempotency and reconciliation. This implementation makes no exactly-once claim for an external service.
 
-The first prompt candidate should not replace Control on the available evidence. Verification of the revised candidate and native Playground form is still outstanding; the repository must not be represented as a fully completed assessment until these checks are closed.
+The first prompt candidate should not replace Control on the available evidence. Further prompt validation and the native Playground form remain outstanding; the repository must not be represented as a fully completed assessment until these checks are closed.
 
 ## AI assistance
 

@@ -2,7 +2,7 @@
 
 AIFindr technical assessment, **Challenge B**: an authenticated MCP gateway proposes simulated EUR transfers; a separate human review UI confirms or rejects them. No bank or payment provider is connected.
 
-**Evidence:** the AIFindr DEV agent created a proposal through OAuth MCP; a browser test signed into the review UI, explicitly confirmed it, and the agent subsequently reported `executed` with `simulated: true`. The first grounding comparison scored Control 19/20 and Variant B 17/20; a corrected version has been saved, with evaluation verification pending. See [results](evaluations/results/2026-09-08-grounding.md) and the single [presentation](docs/presentation.md).
+**Evidence:** the AIFindr DEV agent created a proposal through OAuth MCP; a browser test signed into the review UI, explicitly confirmed it, and the agent subsequently reported `executed` with `simulated: true`. The first grounding comparison scored Control 19/20 and Variant B 17/20; the corrected B v2 scored 18/20 against a fresh Control run of 17/20, without establishing a reliable improvement over the original baseline. See [results](evaluations/results/2026-09-08-grounding.md) and the single [presentation](docs/presentation.md).
 
 ## Run locally
 
