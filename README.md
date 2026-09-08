@@ -26,14 +26,14 @@ _No bank, payment provider, or real financial system is connected._
 
 This repository is the implementation for the **AIFindr Technical Assessment**:
 
-| Area | What was built |
-| --- | --- |
-| **Part 1 · Agent improvement** | Reproducible grounding evaluation with 20 cases, a prompt change, before/after runs, and documented regressions. |
-| **Part 2 · Challenge B** | An authenticated MCP gateway that lets the AIFindr agent propose simulated transfers without giving the model authority to approve them. |
-| **Human approval** | A separate Next.js review UI requires an authenticated reviewer and explicit confirmation. |
-| **Safety** | Deterministic validation, immutable proposal fingerprints, idempotency, expiration, audit events, owner isolation, OAuth replay protection, and credential separation. |
-| **Evidence** | Backend, frontend, browser and security tests plus a 100-action local benchmark. |
-| **Scope** | One project, one shared reviewer, one SQLite instance, simulated actions only. |
+| Area                           | What was built                                                                                                                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Part 1 · Agent improvement** | Reproducible grounding evaluation with 20 cases, a prompt change, before/after runs, and documented regressions.                                                       |
+| **Part 2 · Challenge B**       | An authenticated MCP gateway that lets the AIFindr agent propose simulated transfers without giving the model authority to approve them.                               |
+| **Human approval**             | A separate Next.js review UI requires an authenticated reviewer and explicit confirmation.                                                                             |
+| **Safety**                     | Deterministic validation, immutable proposal fingerprints, idempotency, expiration, audit events, owner isolation, OAuth replay protection, and credential separation. |
+| **Evidence**                   | Backend, frontend, browser and security tests plus a 100-action local benchmark.                                                                                       |
+| **Scope**                      | One project, one shared reviewer, one SQLite instance, simulated actions only.                                                                                         |
 
 > ### Core invariant
 >
@@ -76,12 +76,12 @@ flowchart LR
 
 ### Trust boundary
 
-| Actor | Can propose | Can read status | Can approve | Holds reviewer credential |
-| --- | :---: | :---: | :---: | :---: |
-| AIFindr agent | ✅ | ✅ | ❌ | ❌ |
-| Browser JavaScript | ❌ | Protected UI only | ❌ | ❌ |
-| Authenticated reviewer | ❌ | ✅ | ✅ | Indirectly, server-side |
-| Backend | ✅ | ✅ | ✅ | ✅ |
+| Actor                  | Can propose |  Can read status  | Can approve | Holds reviewer credential |
+| ---------------------- | :---------: | :---------------: | :---------: | :-----------------------: |
+| AIFindr agent          |     ✅      |        ✅         |     ❌      |            ❌             |
+| Browser JavaScript     |     ❌      | Protected UI only |     ❌      |            ❌             |
+| Authenticated reviewer |     ❌      |        ✅         |     ✅      |  Indirectly, server-side  |
+| Backend                |     ✅      |        ✅         |     ✅      |            ✅             |
 
 The reviewer credential never reaches the AIFindr agent or browser JavaScript.
 
@@ -278,20 +278,20 @@ Ask for a simulated transfer using a synthetic `DEMO-*` destination, review it t
 
 The implementation treats the model as an untrusted proposer, not an authority.
 
-| Risk | Control |
-| --- | --- |
-| **Agent self-approval** | No MCP confirmation tool exists. Approval uses an independent reviewer session and credential. |
-| **Proposal changed after review** | Confirmation is bound to an immutable proposal fingerprint. |
-| **Duplicate confirmation / retries** | Idempotency constraints plus transactional serialization. |
-| **Conflicting idempotency key** | Reusing a key with changed proposal data returns a conflict. |
-| **Concurrent confirmation** | SQLite uniqueness + `BEGIN IMMEDIATE` serialize the simulation. |
-| **Stale approval** | Pending proposals expire server-side after the configured timeout. |
-| **Cross-owner access** | Grants and actions are bound to the configured owner. |
-| **OAuth code interception** | S256 PKCE and single-use authorization codes. |
-| **Refresh token replay** | Rotating refresh tokens with family revocation on replay. |
-| **Credential leakage** | Separate credentials, ignored `.env` files, private token storage and no OAuth query logging. |
-| **Host / origin abuse** | Host and Origin checks remain enabled. |
-| **Real-world side effects** | Destinations must be synthetic and execution is simulated only. |
+| Risk                                 | Control                                                                                        |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| **Agent self-approval**              | No MCP confirmation tool exists. Approval uses an independent reviewer session and credential. |
+| **Proposal changed after review**    | Confirmation is bound to an immutable proposal fingerprint.                                    |
+| **Duplicate confirmation / retries** | Idempotency constraints plus transactional serialization.                                      |
+| **Conflicting idempotency key**      | Reusing a key with changed proposal data returns a conflict.                                   |
+| **Concurrent confirmation**          | SQLite uniqueness + `BEGIN IMMEDIATE` serialize the simulation.                                |
+| **Stale approval**                   | Pending proposals expire server-side after the configured timeout.                             |
+| **Cross-owner access**               | Grants and actions are bound to the configured owner.                                          |
+| **OAuth code interception**          | S256 PKCE and single-use authorization codes.                                                  |
+| **Refresh token replay**             | Rotating refresh tokens with family revocation on replay.                                      |
+| **Credential leakage**               | Separate credentials, ignored `.env` files, private token storage and no OAuth query logging.  |
+| **Host / origin abuse**              | Host and Origin checks remain enabled.                                                         |
+| **Real-world side effects**          | Destinations must be synthetic and execution is simulated only.                                |
 
 ### Transfer policy
 
@@ -361,9 +361,9 @@ Control is run before the candidate, and regressions are preserved rather than d
 
 ### Recorded results
 
-| Run | Control | Candidate | Result |
-| --- | ---: | ---: | --- |
-| Initial comparison | **19/20** | Variant B **17/20** | Candidate regressed |
+| Run                 |   Control |              Candidate | Result                        |
+| ------------------- | --------: | ---------------------: | ----------------------------- |
+| Initial comparison  | **19/20** |    Variant B **17/20** | Candidate regressed           |
 | Corrected follow-up | **17/20** | Variant B v2 **18/20** | Candidate +1 vs fresh control |
 
 ### Interpretation
@@ -486,16 +486,16 @@ This demonstrates local idempotent behavior. It does not claim exactly-once deli
 
 ## Tech stack
 
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Agent integration | MCP | Proposal and status tools |
-| Authorization | OAuth + PKCE | AIFindr MCP authentication |
-| Backend | Python + FastAPI | Policy, decisions, OAuth and API |
-| Persistence | SQLite | Actions, tokens and audit data |
-| Frontend | Next.js | Independent human review |
-| Browser tests | Playwright | End-to-end approval flows |
-| Python quality | Ruff | Linting, complexity and formatting |
-| Frontend quality | Oxlint + ESLint + Oxfmt | Linting and formatting |
+| Layer             | Technology              | Responsibility                     |
+| ----------------- | ----------------------- | ---------------------------------- |
+| Agent integration | MCP                     | Proposal and status tools          |
+| Authorization     | OAuth + PKCE            | AIFindr MCP authentication         |
+| Backend           | Python + FastAPI        | Policy, decisions, OAuth and API   |
+| Persistence       | SQLite                  | Actions, tokens and audit data     |
+| Frontend          | Next.js                 | Independent human review           |
+| Browser tests     | Playwright              | End-to-end approval flows          |
+| Python quality    | Ruff                    | Linting, complexity and formatting |
+| Frontend quality  | Oxlint + ESLint + Oxfmt | Linting and formatting             |
 
 ---
 
@@ -526,12 +526,12 @@ CI installs them through `npm ci` and never runs an unpinned `@latest`.
 
 `npm run lint` executes Oxlint plus the existing Next.js/React ESLint configuration with zero warnings permitted.
 
-| Limit | Maximum |
-| --- | ---: |
-| Cyclomatic complexity | 10 |
-| Block nesting | 3 |
-| Parameters | 4 |
-| Nested callbacks | 3 |
+| Limit                 | Maximum |
+| --------------------- | ------: |
+| Cyclomatic complexity |      10 |
+| Block nesting         |       3 |
+| Parameters            |       4 |
+| Nested callbacks      |       3 |
 
 These limits also apply to tests.
 
@@ -604,16 +604,16 @@ Use synthetic identity values when testing the native form.
 
 The assessment explicitly prioritizes technical judgement over feature count, so the implementation intentionally stays narrow.
 
-| Decision | Why | Trade-off |
-| --- | --- | --- |
-| **Model proposes, human approves** | Removes sensitive authority from the AI boundary | Requires a second interaction |
-| **Deterministic backend policy** | Security rules do not depend on model behavior | Less flexible than natural-language policy |
-| **Separate reviewer credential** | Compromise of the MCP grant does not grant approval rights | More secrets/configuration |
-| **SQLite + `BEGIN IMMEDIATE`** | Simple, inspectable and sufficient for a single-instance simulation | Not a multi-instance production design |
-| **Proposal fingerprint** | Binds approval to the exact reviewed data | Not a cryptographic signature |
-| **Short-lived proposals** | Reduces stale-confirmation risk | Reviewer may need a new proposal |
-| **No real payment integration** | Keeps the challenge safe and deterministic | Does not exercise external reconciliation |
-| **Negative eval results preserved** | Makes the evaluation reproducible and honest | The prompt experiment does not produce a clean "win" |
+| Decision                            | Why                                                                 | Trade-off                                            |
+| ----------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| **Model proposes, human approves**  | Removes sensitive authority from the AI boundary                    | Requires a second interaction                        |
+| **Deterministic backend policy**    | Security rules do not depend on model behavior                      | Less flexible than natural-language policy           |
+| **Separate reviewer credential**    | Compromise of the MCP grant does not grant approval rights          | More secrets/configuration                           |
+| **SQLite + `BEGIN IMMEDIATE`**      | Simple, inspectable and sufficient for a single-instance simulation | Not a multi-instance production design               |
+| **Proposal fingerprint**            | Binds approval to the exact reviewed data                           | Not a cryptographic signature                        |
+| **Short-lived proposals**           | Reduces stale-confirmation risk                                     | Reviewer may need a new proposal                     |
+| **No real payment integration**     | Keeps the challenge safe and deterministic                          | Does not exercise external reconciliation            |
+| **Negative eval results preserved** | Makes the evaluation reproducible and honest                        | The prompt experiment does not produce a clean "win" |
 
 ---
 
@@ -745,17 +745,17 @@ Before submission, verify the original assessment brief, the live AIFindr DEV co
 
 ## Assessment evidence
 
-| Deliverable | Repository evidence |
-| --- | --- |
-| Part 1 baseline | `evaluations/grounding-cases.csv` / `.json` |
-| Before / after comparison | `evaluations/results/2026-09-08-grounding.md` |
-| Three concrete examples | Grounding report |
-| Part 2 backend + frontend | `backend/` + `frontend/` |
-| End-to-end happy path | Browser tests + live MCP flow |
-| Non-trivial / adversarial cases | Backend and browser test suites |
-| Objective measurement | `evaluations/results/gateway-benchmark.json` |
-| Architecture + decisions + trade-offs | This README |
-| Async presentation | `docs/presentation.md` |
+| Deliverable                           | Repository evidence                           |
+| ------------------------------------- | --------------------------------------------- |
+| Part 1 baseline                       | `evaluations/grounding-cases.csv` / `.json`   |
+| Before / after comparison             | `evaluations/results/2026-09-08-grounding.md` |
+| Three concrete examples               | Grounding report                              |
+| Part 2 backend + frontend             | `backend/` + `frontend/`                      |
+| End-to-end happy path                 | Browser tests + live MCP flow                 |
+| Non-trivial / adversarial cases       | Backend and browser test suites               |
+| Objective measurement                 | `evaluations/results/gateway-benchmark.json`  |
+| Architecture + decisions + trade-offs | This README                                   |
+| Async presentation                    | `docs/presentation.md`                        |
 
 ---
 
