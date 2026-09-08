@@ -13,3 +13,8 @@ __pycache__/
 playwright-report/
 test-results/
 private/
+
+# Local coding-agent scaffolding and runtime artifacts
+/frontend/AGENTS.md
+*.log
+/source.zip

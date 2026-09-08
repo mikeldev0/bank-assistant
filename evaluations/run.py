@@ -127,6 +127,45 @@ async def prepare(run, row, url):
     }
 
 
+def _validate_transcript(messages, prepared_turns):
+    """Require valid messages and an answer to every prepared user turn."""
+    if not messages or any(
+        m.get("role") not in {"user", "assistant", "tool", "system"}
+        or not isinstance(m.get("content"), str)
+        or not m["content"].strip()
+        for m in messages
+    ):
+        raise ValueError("Messages need a valid role and non-empty text content")
+    if [m["content"] for m in messages if m["role"] == "user"] != prepared_turns:
+        raise ValueError("User turns must exactly match the prepared scenario in order")
+    awaiting_answer = False
+    for message in messages:
+        if message["role"] == "user":
+            if awaiting_answer:
+                raise ValueError("Each user turn needs an assistant response")
+            awaiting_answer = True
+        elif message["role"] == "assistant":
+            awaiting_answer = False
+    if awaiting_answer:
+        raise ValueError("Transcript ends before the last assistant response")
+
+
+def _validate_measurements(evidence):
+    """Accept only measured, finite latency and nonnegative token counts."""
+    latency = evidence.get("latency_ms")
+    if latency is not None and (
+        type(latency) not in (int, float) or not math.isfinite(latency) or latency < 0
+    ):
+        raise ValueError("latency_ms must be a nonnegative measured number or null")
+    usage = evidence.get("usage")
+    if usage is not None:
+        if not isinstance(usage, dict) or not usage or not set(usage) <= {"input_tokens", "output_tokens"}:
+            raise ValueError("usage needs input_tokens and/or output_tokens; omit unavailable data")
+        if any(type(v) is not int or v < 0 for v in usage.values()):
+            raise ValueError("Token counts must be nonnegative integers")
+    return latency, usage
+
+
 def capture(run, row, evidence):
     if row["status"] != "todo" or not row.get("prepared_turns"):
         raise ValueError("Prepare the case first; existing evidence cannot be overwritten")
@@ -142,36 +181,8 @@ def capture(run, row, evidence):
     ):
         raise ValueError("Use a unique non-empty conversation ID per case and repetition")
     messages = evidence.get("messages", [])
-    if not messages or any(
-        m.get("role") not in {"user", "assistant", "tool", "system"}
-        or not isinstance(m.get("content"), str)
-        or not m["content"].strip()
-        for m in messages
-    ):
-        raise ValueError("Messages need a valid role and non-empty text content")
-    if [m["content"] for m in messages if m["role"] == "user"] != row["prepared_turns"]:
-        raise ValueError("User turns must exactly match the prepared scenario in order")
-    awaiting_answer = False
-    for message in messages:
-        if message["role"] == "user":
-            if awaiting_answer:
-                raise ValueError("Each user turn needs an assistant response")
-            awaiting_answer = True
-        elif message["role"] == "assistant":
-            awaiting_answer = False
-    if awaiting_answer:
-        raise ValueError("Transcript ends before the last assistant response")
-    latency = evidence.get("latency_ms")
-    if latency is not None and (
-        type(latency) not in (int, float) or not math.isfinite(latency) or latency < 0
-    ):
-        raise ValueError("latency_ms must be a nonnegative measured number or null")
-    usage = evidence.get("usage")
-    if usage is not None:
-        if not isinstance(usage, dict) or not usage or not set(usage) <= {"input_tokens", "output_tokens"}:
-            raise ValueError("usage needs input_tokens and/or output_tokens; omit unavailable data")
-        if any(type(v) is not int or v < 0 for v in usage.values()):
-            raise ValueError("Token counts must be nonnegative integers")
+    _validate_transcript(messages, row["prepared_turns"])
+    latency, usage = _validate_measurements(evidence)
     row.update(
         {
             "status": "captured",
@@ -201,7 +212,7 @@ def review(row, score):
     row["status"] = "reviewed"
 
 
-def main():
+def _build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest="command", required=True)
     create = subs.add_parser("create")
@@ -227,6 +238,11 @@ def main():
             )
         else:
             sub.add_argument("file")
+    return parser
+
+
+def main():
+    parser = _build_parser()
     args = parser.parse_args()
     try:
         if args.command == "create":

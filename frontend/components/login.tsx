@@ -18,12 +18,10 @@ export function Login() {
           siempre es tuya.
         </h1>
         <p>
-          Revisa las acciones del asistente, confirma los detalles y mantén el
-          control en cada paso.
+          Revisa las acciones del asistente, confirma los detalles y mantén el control en cada paso.
         </p>
         <div className="login-note">
-          <ShieldCheck size={20} /> Entorno de simulación · Sin movimientos de
-          dinero real
+          <ShieldCheck size={20} /> Entorno de simulación · Sin movimientos de dinero real
         </div>
       </section>
       <form

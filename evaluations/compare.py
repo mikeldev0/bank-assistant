@@ -10,6 +10,20 @@ from evaluations.run import capture, digest, review
 from evaluations.support import private_path, save
 
 
+def _validate_evidence(run, row):
+    """Re-validate the captured transcript, review and frozen fixture."""
+    check = deepcopy(row)
+    check["status"] = "todo"
+    capture({"project_id": run["project_id"], "cases": []}, check, {**row, "project_id": run["project_id"]})
+    review(check, row["review"])
+    case = next(c for c in run["dataset"] if c["id"] == row["case_id"])
+    fixture = row.get("fixture", {})
+    if row["prepared_turns"] != [t.format(**fixture) for t in case["turns"]]:
+        raise ValueError("Prepared turns differ from the frozen dataset")
+    if case.get("fixture") and fixture.get("observed", {}).get("status") != case["fixture"]["state"]:
+        raise ValueError("Missing fixture state evidence")
+
+
 def validate(run):
     if run.get("schema_version") != 1:
         raise ValueError("Expected versioned manifest; score-only files are insufficient")
@@ -36,18 +50,7 @@ def validate(run):
         if row["conversation_id"] in seen:
             raise ValueError("Conversation reused across scenarios")
         seen.add(row["conversation_id"])
-        check = deepcopy(row)
-        check["status"] = "todo"
-        capture(
-            {"project_id": run["project_id"], "cases": []}, check, {**row, "project_id": run["project_id"]}
-        )
-        review(check, row["review"])
-        case = next(c for c in run["dataset"] if c["id"] == row["case_id"])
-        fixture = row.get("fixture", {})
-        if row["prepared_turns"] != [t.format(**fixture) for t in case["turns"]]:
-            raise ValueError("Prepared turns differ from the frozen dataset")
-        if case.get("fixture") and fixture.get("observed", {}).get("status") != case["fixture"]["state"]:
-            raise ValueError("Missing fixture state evidence")
+        _validate_evidence(run, row)
     return rows
 
 
@@ -81,17 +84,7 @@ def metrics(run):
     }
 
 
-def compare(before, after):
-    left, right = validate(before), validate(after)
-    if before["phase"] != "baseline" or after["phase"] != "candidate":
-        raise ValueError("Compare baseline against candidate, not original snapshots")
-    for key in ["project_id", "organization_id", "config_sha256", "dataset_sha256", "repeats"]:
-        if before[key] != after[key]:
-            raise ValueError(f"Uncontrolled comparison: {key} changed")
-    if before["prompt_sha256"] == after["prompt_sha256"]:
-        raise ValueError("The candidate prompt is unchanged")
-    if {r["conversation_id"] for r in left.values()} & {r["conversation_id"] for r in right.values()}:
-        raise ValueError("Before/after must use independent conversations")
+def _classify_changes(left, right):
     changes = {"improvements": [], "regressions": [], "persistent_failures": []}
     for pair, old in left.items():
         a, b = old["review"]["pass"], right[pair]["review"]["pass"]
@@ -104,6 +97,10 @@ def compare(before, after):
             label = "persistent_failures"
         if label:
             changes[label].append({"case_id": pair[0], "repeat": pair[1]})
+    return changes
+
+
+def _select_examples(changes, left, right):
     # Regressions first, then improvements/failures: do not cherry-pick three successes.
     candidates = changes["regressions"] + changes["improvements"] + changes["persistent_failures"]
     examples, selected = [], set()
@@ -115,6 +112,22 @@ def compare(before, after):
         examples.append({**candidate, "before": left[pair]["review"], "after": right[pair]["review"]})
         if len(examples) == 3:
             break
+    return examples
+
+
+def compare(before, after):
+    left, right = validate(before), validate(after)
+    if before["phase"] != "baseline" or after["phase"] != "candidate":
+        raise ValueError("Compare baseline against candidate, not original snapshots")
+    for key in ["project_id", "organization_id", "config_sha256", "dataset_sha256", "repeats"]:
+        if before[key] != after[key]:
+            raise ValueError(f"Uncontrolled comparison: {key} changed")
+    if before["prompt_sha256"] == after["prompt_sha256"]:
+        raise ValueError("The candidate prompt is unchanged")
+    if {r["conversation_id"] for r in left.values()} & {r["conversation_id"] for r in right.values()}:
+        raise ValueError("Before/after must use independent conversations")
+    changes = _classify_changes(left, right)
+    examples = _select_examples(changes, left, right)
     return {
         "before": metrics(before),
         "after": metrics(after),

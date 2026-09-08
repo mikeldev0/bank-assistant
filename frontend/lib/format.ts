@@ -12,9 +12,7 @@ export const events: Record<string, string> = {
   expired: "Plazo de confirmación agotado",
 };
 export const money = (cents: number) =>
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(
-    cents / 100,
-  );
+  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
 export const date = (value: number) =>
   new Date(value * 1000).toLocaleString("es-ES", {
     day: "2-digit",

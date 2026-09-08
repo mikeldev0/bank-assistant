@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -26,7 +27,12 @@ class DomainError(Exception):
 
 class Store:
     def __init__(self, path: str, ttl: int = 600):
+        if type(ttl) is not int or not 1 <= ttl <= 3600:
+            raise ValueError("TTL must be an integer between 1 and 3600 seconds")
         self.path, self.ttl = path, ttl
+        descriptor = os.open(path, os.O_CREAT | os.O_WRONLY, 0o600)
+        os.close(descriptor)
+        os.chmod(path, 0o600)
         with self.connection() as db:
             db.executescript("""
                 PRAGMA journal_mode=WAL;
@@ -70,10 +76,10 @@ class Store:
             "simulated": True,
         }
 
-    def expire(self, db, owner):
+    def expire(self, db, owner, now=None):
         rows = db.execute(
             "SELECT id FROM actions WHERE owner=? AND status='pending' AND expires_at<=?",
-            (owner, time.time()),
+            (owner, time.time() if now is None else now),
         ).fetchall()
         for row in rows:
             db.execute("UPDATE actions SET status='expired' WHERE id=?", (row["id"],))
@@ -138,23 +144,37 @@ class Store:
             return result
 
     def decide(self, owner: str, action_id: str, fingerprint: str, confirm: bool):
-        # Expiration commits even when the decision subsequently fails.
-        self.get(owner, action_id)
+        if type(confirm) is not bool:
+            raise DomainError("Decision must be an explicit boolean.", 422)
+        error = None
+        result = None
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            # One authorization-state snapshot, taken AFTER acquiring the writer
+            # lock. Expiration and decision cannot race between transactions.
+            now = time.time()
+            self.expire(db, owner, now)
             row = db.execute("SELECT * FROM actions WHERE id=? AND owner=?", (action_id, owner)).fetchone()
-            if row is None:
-                raise DomainError("Acción no encontrada.", 404)
             target = "executed" if confirm else "rejected"
-            if row["fingerprint"] != fingerprint:
-                raise DomainError("Los datos revisados no coinciden con la propuesta.")
-            if row["status"] == target:
-                return self.serialize(row)
-            if row["status"] != "pending" or row["expires_at"] <= time.time():
-                raise DomainError("La acción ya no admite confirmación.")
-            if confirm:
-                self.event(db, action_id, "confirmed", "human")
-            # Simulation and state change share one transaction: no external side effect.
-            db.execute("UPDATE actions SET status=? WHERE id=?", (target, action_id))
-            self.event(db, action_id, target, "simulator" if confirm else "human")
-            return self.serialize(db.execute("SELECT * FROM actions WHERE id=?", (action_id,)).fetchone())
+            if row is None:
+                error = DomainError("Acci\u00f3n no encontrada.", 404)
+            elif row["fingerprint"] != fingerprint:
+                error = DomainError("Los datos revisados no coinciden con la propuesta.")
+            elif row["status"] == target:
+                result = self.serialize(row)
+            elif row["status"] != "pending":
+                error = DomainError("La acci\u00f3n ya no admite confirmaci\u00f3n.")
+            else:
+                if confirm:
+                    self.event(db, action_id, "confirmed", "human")
+                # Simulation and state change share one transaction: no external side effect.
+                db.execute("UPDATE actions SET status=? WHERE id=?", (target, action_id))
+                self.event(db, action_id, target, "simulator" if confirm else "human")
+                result = self.serialize(
+                    db.execute("SELECT * FROM actions WHERE id=?", (action_id,)).fetchone()
+                )
+        # Raise only after the transaction commits, retaining an expiration event
+        # even when a stale or altered confirmation is refused.
+        if error:
+            raise error
+        return result

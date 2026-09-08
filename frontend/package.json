@@ -1,18 +1,24 @@
 {
   "name": "bank-assistant-web",
   "version": "1.0.0",
+  "private": true,
   "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
-    "lint": "eslint .",
+    "lint": "npm run lint:oxlint && npm run lint:eslint",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test"
+    "test": "playwright test",
+    "lint:oxlint": "oxlint --max-warnings 0 .",
+    "lint:eslint": "eslint . --max-warnings 0",
+    "lint:fix": "oxlint --fix --max-warnings 0 . && eslint . --fix --max-warnings 0",
+    "format": "cd .. && oxfmt --write .",
+    "format:check": "cd .. && oxfmt --check ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "lucide-react": "^1.41.0",
     "next": "^16.3.4",
@@ -26,8 +32,8 @@
     "@types/react-dom": "^19.2.7",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
-    "prettier": "^3.9.6",
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
     "typescript": "^6.0.3"
-  },
-  "private": true
+  }
 }

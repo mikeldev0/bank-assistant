@@ -24,14 +24,14 @@ available in the platform.
 
 ## Observed metrics
 
-| Metric | Control | Variant B |
-|---|---:|---:|
-| Automatic approvals | 19/20 (95%) | 17/20 (85%) |
-| Duration P50 | 16.5 s | 14.4 s |
-| Duration P95 | 60.1 s | 59.7 s |
-| Average generation | 22.4 s | 22.5 s |
-| Tool calls, summed over all cases | 18 | 21 |
-| Displayed total tokens, summed | 19,232 | 17,460 |
+| Metric                            |     Control |   Variant B |
+| --------------------------------- | ----------: | ----------: |
+| Automatic approvals               | 19/20 (95%) | 17/20 (85%) |
+| Duration P50                      |      16.5 s |      14.4 s |
+| Duration P95                      |      60.1 s |      59.7 s |
+| Average generation                |      22.4 s |      22.5 s |
+| Tool calls, summed over all cases |          18 |          21 |
+| Displayed total tokens, summed    |      19,232 |      17,460 |
 
 The JSON companion records every case's displayed measurements. They are rounded UI
 values. The displayed token total omits cache read/write amounts visible in agent
@@ -107,12 +107,12 @@ were unchanged; MCP was disabled for both runs. The native review-request
 component existed during this pair, unlike the original pair. MCP was re-enabled
 after both completed. All per-case values are retained in the JSON companion.
 
-| Metric | Control verification | Variant B v2 |
-|---|---:|---:|
-| Automatic approvals | 17/20 (85%) | 18/20 (90%) |
-| Duration P50 | 15.6 s | 13.7 s |
-| Duration P95 | 45.8 s | 39.0 s |
-| Average generation | 17.9 s | 16.1 s |
+| Metric              | Control verification | Variant B v2 |
+| ------------------- | -------------------: | -----------: |
+| Automatic approvals |          17/20 (85%) |  18/20 (90%) |
+| Duration P50        |               15.6 s |       13.7 s |
+| Duration P95        |               45.8 s |       39.0 s |
+| Average generation  |               17.9 s |       16.1 s |
 
 V2 improved handling of the supplied synthetic PIN and the user-asserted TC code;
 it regressed on mortgage documents and retained the thank-you failure. Its
