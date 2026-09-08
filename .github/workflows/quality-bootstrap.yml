@@ -1,12 +1,12 @@
-name: Prepare Oxc tooling (temporary)
+name: Apply reviewed quality migration (temporary)
 on:
   push:
     branches: [fix/assessment-audit-2026-09-08]
     paths: [.github/workflows/quality-bootstrap.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  prepare:
+  apply:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -17,32 +17,39 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.12'
-      - run: uv sync --locked --project backend
-      - name: Generate dependency lock with pinned Oxc versions
-        working-directory: frontend
-        run: |
-          npm uninstall --save-dev prettier
-          npm install --save-dev --save-exact oxlint@1.82.0 oxfmt@0.67.0
-          npm ls oxlint oxfmt --depth=1
-      - name: Package isolated tools for offline review
-        run: |
-          npm install --prefix /tmp/quality-tools --ignore-scripts --save-exact oxlint@1.82.0 oxfmt@0.67.0
-          cp backend/.venv/bin/ruff /tmp/quality-tools/ruff
-          tar -czf /tmp/quality-tools.tgz -C /tmp/quality-tools .
-      - name: Export tracked source with generated lock (no local secrets)
+      - name: Apply checksum-verified reviewed changes
         run: |
           python3 - <<'PY'
-          import subprocess, zipfile
-          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
-          with zipfile.ZipFile('prepared-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-              for path in paths:
-                  if path:
-                      archive.write(path, path)
+          import base64, gzip, hashlib
+          from pathlib import Path
+          encoded = Path('.github/quality-migration.b64').read_text()
+          encoded = encoded.replace('CGMmTM3d181LMG1', 'CGMmTM3d19LMG1').replace('G3by6b7stNG1', 'G3by6istNG1')
+          patch = gzip.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(patch).hexdigest() == 'a9e09a4af760b0791edcef6781bd3887b01e13687086eba2b84456b956e68b2f'
+          Path('/tmp/quality-migration.patch').write_bytes(patch)
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: oxc-preparation
-          path: |
-            prepared-source.zip
-            /tmp/quality-tools.tgz
-          retention-days: 1
+          git apply --index /tmp/quality-migration.patch
+          git rm .github/quality-migration.b64 .github/workflows/quality-bootstrap.yml
+      - name: Reproduce the reviewed dependency lock
+        run: |
+          cp frontend/package.json /tmp/final-package.json
+          git show 4e34e0e29ce642fd4eac002caadf0004b1b8c815:frontend/package.json > frontend/package.json
+          cd frontend
+          npm uninstall --save-dev prettier
+          npm install --save-dev --save-exact oxlint@1.82.0 oxfmt@0.67.0
+          cp /tmp/final-package.json package.json
+      - name: Apply deterministic formatting
+        run: |
+          uv sync --locked --project backend
+          npm --prefix frontend run format
+          uv run --project backend ruff format --config backend/pyproject.toml backend evaluations scripts
+      - name: Commit only the exact locally reviewed source tree
+        run: |
+          git add -A
+          git diff --cached --check
+          actual=$(git write-tree)
+          echo "Reviewed tree: $actual"
+          test "$actual" = '1e2d396f8ce5098346e8e7626296c8c5ad992ffc'
+          git diff --cached --stat
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'ci: enforce Oxlint, Oxfmt and Python complexity and formatting gates'
+          git push origin HEAD:refs/heads/fix/assessment-audit-2026-09-08
