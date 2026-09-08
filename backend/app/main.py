@@ -2,15 +2,17 @@ from contextlib import asynccontextmanager
 from secrets import compare_digest
 from typing import Annotated, Literal
 
+from app.domain import DomainError, Proposal, Store
+from app.oauth import SCOPE, OAuthProvider
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from mcp.server import MCPServer
+from mcp.server.auth.routes import create_auth_routes, create_protected_resource_routes
+from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOptions
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.responses import Response
-
-from app.domain import DomainError, Proposal, Store
 
 
 class Settings(BaseSettings):
@@ -21,6 +23,8 @@ class Settings(BaseSettings):
     owner_id: str = "assessment-user"
     confirmation_ttl: int = Field(default=600, ge=1, le=3600)
     mcp_allowed_hosts: list[str] = ["localhost:*", "127.0.0.1:*"]
+    oauth_issuer_url: str | None = None
+    oauth_database_path: str = "oauth.db"
 
     @model_validator(mode="after")
     def separate_roles(self):
@@ -36,16 +40,35 @@ class Decision(BaseModel):
 
 
 class MCPAuth:
-    def __init__(self, app, token):
+    def __init__(self, app, token, oauth=None):
         self.app, self.token = app, token
+        self.oauth = oauth
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = dict(scope["headers"])
             expected = f"Bearer {self.token}".encode()
             if not compare_digest(headers.get(b"authorization", b""), expected):
-                await Response(status_code=401)(scope, receive, send)
-                return
+                auth = headers.get(b"authorization", b"").decode("latin1")
+                verified = (
+                    await self.oauth.load_access_token(auth[7:])
+                    if self.oauth and auth.startswith("Bearer ")
+                    else None
+                )
+                if verified is None:
+                    challenge = (
+                        {
+                            "WWW-Authenticate": 'Bearer resource_metadata="'
+                            + self.oauth.issuer
+                            + '/.well-known/oauth-protected-resource/mcp", scope="'
+                            + SCOPE
+                            + '"'
+                        }
+                        if self.oauth
+                        else {}
+                    )
+                    await Response(status_code=401, headers=challenge)(scope, receive, send)
+                    return
         await self.app(scope, receive, send)
 
 
@@ -97,6 +120,34 @@ def create_app(settings: Settings | None = None):
 
     app = FastAPI(title="Bank Assistant Safe Actions", version="1.0.0", lifespan=lifespan)
     app.state.store, app.state.mcp = store, mcp
+    oauth = None
+    if settings.oauth_issuer_url:
+        from starlette.routing import Route
+
+        oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url)
+        app.state.oauth = oauth
+        app.router.routes.append(Route("/revoke", oauth.revoke_request, methods=["POST"]))
+        app.router.routes.extend(
+            create_auth_routes(
+                oauth,
+                AnyHttpUrl(oauth.issuer),
+                client_registration_options=ClientRegistrationOptions(
+                    enabled=True,
+                    valid_scopes=[SCOPE],
+                    default_scopes=[SCOPE],
+                ),
+                revocation_options=RevocationOptions(enabled=True),
+            )
+        )
+        app.router.routes.extend(
+            create_protected_resource_routes(
+                AnyHttpUrl(oauth.resource),
+                [AnyHttpUrl(oauth.issuer)],
+                [SCOPE],
+                "Bank Assistant simulations",
+            )
+        )
+        app.router.routes.append(Route("/consent", oauth.consent, methods=["GET"]))
 
     @app.exception_handler(DomainError)
     async def domain_error(request: Request, exc: DomainError):
@@ -123,5 +174,5 @@ def create_app(settings: Settings | None = None):
     def decide(action_id: str, body: Decision, owner: str = Depends(reviewer)):
         return store.decide(owner, action_id, body.fingerprint, body.decision == "confirm")
 
-    app.mount("/", MCPAuth(mcp_app, settings.mcp_token))
+    app.mount("/", MCPAuth(mcp_app, settings.mcp_token, oauth))
     return app
