@@ -38,7 +38,9 @@ def main():
     try:
         create_configuration(Path(__file__).resolve().parents[1])
     except OSError as exc:
-        raise SystemExit("Setup failed; existing configuration was preserved. Check file paths and permissions.") from exc
+        raise SystemExit(
+            "Setup failed; existing configuration was preserved. Check file paths and permissions."
+        ) from exc
     print("Local configuration created. Read REVIEW_PASSWORD from frontend/.env.local to sign in.")
 
 

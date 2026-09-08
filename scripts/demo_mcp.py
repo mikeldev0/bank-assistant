@@ -12,10 +12,17 @@ async def propose_demo(url):
     from evaluations.support import call, gateway
 
     async with gateway(url) as session:
-        return await call(session, "propose_transfer", {
-            "recipient": "Alex Demo", "destination": "DEMO-4821", "amount_cents": 12500,
-            "concept": "Synthetic travel contribution", "idempotency_key": str(uuid4()),
-        })
+        return await call(
+            session,
+            "propose_transfer",
+            {
+                "recipient": "Alex Demo",
+                "destination": "DEMO-4821",
+                "amount_cents": 12500,
+                "concept": "Synthetic travel contribution",
+                "idempotency_key": str(uuid4()),
+            },
+        )
 
 
 def main():

@@ -170,7 +170,9 @@ class Store:
                 # Simulation and state change share one transaction: no external side effect.
                 db.execute("UPDATE actions SET status=? WHERE id=?", (target, action_id))
                 self.event(db, action_id, target, "simulator" if confirm else "human")
-                result = self.serialize(db.execute("SELECT * FROM actions WHERE id=?", (action_id,)).fetchone())
+                result = self.serialize(
+                    db.execute("SELECT * FROM actions WHERE id=?", (action_id,)).fetchone()
+                )
         # Raise only after the transaction commits, retaining an expiration event
         # even when a stale or altered confirmation is refused.
         if error:

@@ -24,8 +24,7 @@ export default async function Page({
       }
     }
   } catch {
-    error =
-      "No se puede conectar con el gateway. Comprueba que el backend esté disponible.";
+    error = "No se puede conectar con el gateway. Comprueba que el backend esté disponible.";
   }
   return (
     <Dashboard

@@ -716,8 +716,7 @@ footer span:first-child {
   gap: 10%;
   align-items: center;
   padding: 8% 12%;
-  background:
-    radial-gradient(ellipse at 20% 70%, #e6edda, transparent 60%), #f8f9f5;
+  background: radial-gradient(ellipse at 20% 70%, #e6edda, transparent 60%), #f8f9f5;
 }
 .login .brand {
   margin-bottom: 85px;

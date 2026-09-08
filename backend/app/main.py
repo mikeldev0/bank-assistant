@@ -36,9 +36,15 @@ class Settings(BaseSettings):
             raise ValueError("MCP and reviewer must have different credentials")
         review = urlsplit(self.review_base_url)
         _ = review.port  # Validate malformed/out-of-range ports at startup.
-        if (review.scheme != "https" and not
-            (review.scheme == "http" and review.hostname in {"localhost", "127.0.0.1"})) or (
-            not review.hostname or review.username or review.password or review.query or review.fragment
+        if (
+            review.scheme != "https"
+            and not (review.scheme == "http" and review.hostname in {"localhost", "127.0.0.1"})
+        ) or (
+            not review.hostname
+            or review.username
+            or review.password
+            or review.query
+            or review.fragment
             or review.path not in {"", "/"}
         ):
             raise ValueError("Review URL must be a clean HTTPS origin or loopback HTTP")
@@ -93,11 +99,12 @@ class MCPAuth:
         await self.app(scope, receive, observed_send)
 
 
-def create_app(settings: Settings | None = None):
-    settings = settings or Settings()
-    store = Store(settings.database_path, settings.confirmation_ttl)
+def _create_mcp(store: Store, settings: Settings) -> MCPServer:
+    """Expose only proposal/status tools, never reviewer authority."""
+
     def review_link(action):
         return {**action, "review_url": settings.review_base_url.rstrip("/") + "/?action=" + action["id"]}
+
     mcp = MCPServer(
         "Bank Assistant · Safe Actions",
         instructions="Propose simulated transfers only. A human must confirm in the review UI. Never claim execution before status is executed.",
@@ -112,21 +119,66 @@ def create_app(settings: Settings | None = None):
         idempotency_key: str,
     ) -> dict:
         """Propose a EUR simulation, maximum 100000 cents. Destination must be DEMO-xxxx. Reuse idempotency_key on retries. Cannot confirm or execute."""
-        return review_link(store.propose(
-            settings.owner_id,
-            Proposal(
-                recipient=recipient,
-                destination=destination,
-                amount_cents=amount_cents,
-                concept=concept,
-                idempotency_key=idempotency_key,
-            ),
-        ))
+        return review_link(
+            store.propose(
+                settings.owner_id,
+                Proposal(
+                    recipient=recipient,
+                    destination=destination,
+                    amount_cents=amount_cents,
+                    concept=concept,
+                    idempotency_key=idempotency_key,
+                ),
+            )
+        )
 
     @mcp.tool()
     def get_transfer_status(action_id: str) -> dict:
         """Read the authoritative status and audit of a simulated transfer."""
         return review_link(store.get(settings.owner_id, action_id))
+
+    return mcp
+
+
+def _configure_oauth(app: FastAPI, settings: Settings) -> OAuthProvider | None:
+    """Register authorization routes separately from the review API."""
+    if not settings.oauth_issuer_url:
+        return None
+    from starlette.routing import Route
+
+    oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url, settings.owner_id)
+    app.state.oauth = oauth
+    app.router.routes.append(Route("/token", oauth.token_request, methods=["POST"]))
+    app.router.routes.append(Route("/revoke", oauth.revoke_request, methods=["POST"]))
+    app.router.routes.extend(
+        create_auth_routes(
+            oauth,
+            AnyHttpUrl(oauth.issuer),
+            client_registration_options=ClientRegistrationOptions(
+                enabled=True,
+                valid_scopes=[SCOPE],
+                default_scopes=[SCOPE],
+            ),
+            revocation_options=RevocationOptions(enabled=True),
+        )
+    )
+    app.router.routes.extend(
+        create_protected_resource_routes(
+            AnyHttpUrl(oauth.resource),
+            [AnyHttpUrl(oauth.issuer)],
+            [SCOPE],
+            "Bank Assistant simulations",
+        )
+    )
+    app.router.routes.append(Route("/consent", oauth.consent, methods=["GET"]))
+
+    return oauth
+
+
+def create_app(settings: Settings | None = None):
+    settings = settings or Settings()
+    store = Store(settings.database_path, settings.confirmation_ttl)
+    mcp = _create_mcp(store, settings)
 
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True, allowed_hosts=settings.mcp_allowed_hosts
@@ -144,35 +196,7 @@ def create_app(settings: Settings | None = None):
 
     app = FastAPI(title="Bank Assistant Safe Actions", version="1.0.0", lifespan=lifespan)
     app.state.store, app.state.mcp = store, mcp
-    oauth = None
-    if settings.oauth_issuer_url:
-        from starlette.routing import Route
-
-        oauth = OAuthProvider(settings.oauth_database_path, settings.oauth_issuer_url, settings.owner_id)
-        app.state.oauth = oauth
-        app.router.routes.append(Route("/token", oauth.token_request, methods=["POST"]))
-        app.router.routes.append(Route("/revoke", oauth.revoke_request, methods=["POST"]))
-        app.router.routes.extend(
-            create_auth_routes(
-                oauth,
-                AnyHttpUrl(oauth.issuer),
-                client_registration_options=ClientRegistrationOptions(
-                    enabled=True,
-                    valid_scopes=[SCOPE],
-                    default_scopes=[SCOPE],
-                ),
-                revocation_options=RevocationOptions(enabled=True),
-            )
-        )
-        app.router.routes.extend(
-            create_protected_resource_routes(
-                AnyHttpUrl(oauth.resource),
-                [AnyHttpUrl(oauth.issuer)],
-                [SCOPE],
-                "Bank Assistant simulations",
-            )
-        )
-        app.router.routes.append(Route("/consent", oauth.consent, methods=["GET"]))
+    oauth = _configure_oauth(app, settings)
 
     @app.exception_handler(DomainError)
     async def domain_error(request: Request, exc: DomainError):

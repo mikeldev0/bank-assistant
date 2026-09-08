@@ -58,6 +58,7 @@ References: [AIFindr API](https://docs.aifindr.ai/docs/api/ai-findr-api/), [MCP 
 ```bash
 uv run --project backend pytest backend/tests -q
 uv run --project backend ruff check --config backend/pyproject.toml backend evaluations scripts
+uv run --project backend ruff format --check --config backend/pyproject.toml backend evaluations scripts
 uv run --project backend python scripts/benchmark.py
 ```
 
@@ -66,6 +67,7 @@ With both local servers running:
 ```bash
 cd frontend
 npm run lint
+npm run format:check
 npm run build
 npm run typecheck
 npx playwright install chromium
@@ -75,6 +77,24 @@ npm test
 Browser tests cover MCP proposal, exact-action selection, login, explicit confirmation, rejection, authoritative audit events, idempotent retries, terminal-state conflicts and mobile overflow. Separate session tests cover malformed cookies and runtime identifier validation. Screenshots are test artifacts, not source files. Backend tests cover concurrent retries, altered fingerprints, conflicting idempotency keys, expiry/audit atomicity, owner isolation, credential separation, malformed or duplicated authorization, configuration file permissions and OAuth replay/resource binding. A dataset consistency test checks the delivered CSV/JSON and recorded score totals; it does not rerun or validate the original platform judge. GitHub Actions runs the same checks.
 
 The [100-action benchmark](evaluations/results/gateway-benchmark.json) measures local SQLite proposal/confirmation/execution, excluding HTTP and LLM time. It also verifies that 32 confirmation retries leave exactly one execution event.
+
+## Code quality gates
+
+Oxlint 1.82.0 and Oxfmt 0.67.0 are exact development dependencies recorded in the npm lockfile. CI installs them with `npm ci`; it never runs an unpinned `npx ...@latest`.
+
+`npm run lint` runs both Oxlint and the existing Next.js/React ESLint configuration, with zero warnings permitted. Oxlint enables correctness checks plus explicit error-level limits: cyclomatic complexity **10**, block nesting **3**, parameters **4**, and nested callbacks **3**. These limits also apply to tests; no complexity suppressions or test-specific relaxations are used.
+
+`npm run format:check` runs Oxfmt from the repository root, covering JavaScript/TypeScript, CSS, JSON, TOML, Markdown and workflow YAML. It excludes generated lockfiles, Next.js declarations/build output, dependencies, test artifacts and `private/`. For Python, Ruff enforces `C901` with maximum complexity **10** and a separate `ruff format --check`. Oxfmt and Oxlint do not lint or format Python.
+
+To apply safe lint fixes or formatting locally:
+
+```bash
+npm --prefix frontend run lint:fix
+npm --prefix frontend run format
+uv run --project backend ruff format --config backend/pyproject.toml backend evaluations scripts
+```
+
+CI uses **check-only** commands: it fails rather than rewriting source. Regression tests also feed deliberately over-complex, over-nested and badly formatted snippets into the committed configurations, check that they fail, and verify that compliant code passes. Formatter checks are tested not to mutate files. Existing authentication, OAuth, confirmation/rejection, evaluation-consistency and browser tests remain enabled.
 
 ## Part 1: reproducible evaluation
 

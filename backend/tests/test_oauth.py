@@ -45,6 +45,7 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path, auth_me
         )
         assert registration.status_code == 201, registration.text
         cid = registration.json()["client_id"]
+
         def token_post(path, data):
             if auth_method == "client_secret_basic":
                 data = {key: value for key, value in data.items() if key != "client_id"}
@@ -72,7 +73,10 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path, auth_me
         request_id = parse_qs(urlsplit(auth.headers["location"]).query)["request"][0]
         consent_path = "/consent?request=" + request_id
         assert client.get(consent_path).status_code == 200
-        assert client.post("/consent", data={"request": request_id, "approve": "true"}).status_code in (401, 405)
+        assert client.post("/consent", data={"request": request_id, "approve": "true"}).status_code in (
+            401,
+            405,
+        )
         app.state.oauth.approve(request_id)
         redirect = client.get(consent_path, follow_redirects=False)
         assert redirect.status_code == 302
@@ -90,8 +94,14 @@ def test_oauth_pkce_consent_replay_refresh_and_role_separation(tmp_path, auth_me
         if auth_method == "client_secret_basic":
             no_id = {key: value for key, value in form.items() if key != "client_id"}
             assert client.post("/token", data=no_id, auth=(cid, "wrong")).status_code == 401
-            assert client.post("/token", data={**form, "client_id": "other"},
-                               auth=(cid, registration.json()["client_secret"])).status_code == 401
+            assert (
+                client.post(
+                    "/token",
+                    data={**form, "client_id": "other"},
+                    auth=(cid, registration.json()["client_secret"]),
+                ).status_code
+                == 401
+            )
         assert token_post("/token", data={**form, "resource": "https://other.test/mcp"}).status_code == 400
         issued = token_post("/token", data=form)
         assert issued.status_code == 200, issued.text

@@ -26,18 +26,12 @@ export function TransferReview({
         <>
           <div className="detail-title">
             <span className="eyebrow">REVISIÓN DE TRANSFERENCIA</span>
-            <button
-              className="icon-button"
-              aria-label="Cerrar detalle"
-              onClick={onClose}
-            >
+            <button className="icon-button" aria-label="Cerrar detalle" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
           <h2>{money(selected.amount_cents)}</h2>
-          <span className={`badge ${selected.status}`}>
-            {labels[selected.status]}
-          </span>
+          <span className={`badge ${selected.status}`}>{labels[selected.status]}</span>
           <dl>
             <div>
               <dt>Beneficiario</dt>
@@ -70,8 +64,7 @@ export function TransferReview({
                   checked={checked}
                   onChange={(e) => onChecked(e.target.checked)}
                 />
-                He revisado el importe y el destinatario. Confirmo esta
-                simulación.
+                He revisado el importe y el destinatario. Confirmo esta simulación.
               </label>
               <button
                 className="confirm-button"
@@ -109,10 +102,7 @@ export function TransferReview({
         <div className="detail-empty">
           <ArrowDownLeft size={25} />
           <h3>Los detalles importan.</h3>
-          <p>
-            Selecciona una acción para revisar sus datos y consultar su
-            trazabilidad.
-          </p>
+          <p>Selecciona una acción para revisar sus datos y consultar su trazabilidad.</p>
           <div>
             <ShieldCheck size={16} /> Verificación antes de ejecución
           </div>

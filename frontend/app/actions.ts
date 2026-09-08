@@ -7,11 +7,7 @@ import { isActionId, isFingerprint } from "@/lib/validation";
 
 export async function login(form: FormData): Promise<string | null> {
   const password = form.get("password");
-  if (
-    typeof password !== "string" ||
-    password.length > 256 ||
-    !passwordMatches(password)
-  ) {
+  if (typeof password !== "string" || password.length > 256 || !passwordMatches(password)) {
     return "La contraseña no es correcta.";
   }
   await startSession();
@@ -29,16 +25,8 @@ export async function getTransfer(id: string) {
   if (!isActionId(id)) throw new Error("Identificador no válido");
   return api<Transfer>(`/actions/${id}`);
 }
-export async function decide(
-  id: string,
-  fingerprint: string,
-  decision: "confirm" | "reject",
-) {
-  if (
-    !isActionId(id) ||
-    !isFingerprint(fingerprint) ||
-    !["confirm", "reject"].includes(decision)
-  ) {
+export async function decide(id: string, fingerprint: string, decision: "confirm" | "reject") {
+  if (!isActionId(id) || !isFingerprint(fingerprint) || !["confirm", "reject"].includes(decision)) {
     throw new Error("Solicitud no válida");
   }
   const result = await api<Transfer>(`/actions/${id}/decision`, {

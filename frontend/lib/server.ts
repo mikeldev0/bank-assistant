@@ -28,29 +28,21 @@ export async function authenticated() {
   return verifySession(value, required("SESSION_SECRET"));
 }
 export async function api<T>(path: string, body?: unknown): Promise<T> {
-  if (!(await authenticated()))
-    throw new Error("Inicia sesión para revisar las acciones.");
-  const response = await fetch(
-    `${process.env.BACKEND_URL ?? "http://127.0.0.1:8000"}${path}`,
-    {
-      method: body ? "POST" : "GET",
-      headers: {
-        Authorization: `Bearer ${required("REVIEWER_TOKEN")}`,
-        "Content-Type": "application/json",
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+  if (!(await authenticated())) throw new Error("Inicia sesión para revisar las acciones.");
+  const response = await fetch(`${process.env.BACKEND_URL ?? "http://127.0.0.1:8000"}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: {
+      Authorization: `Bearer ${required("REVIEWER_TOKEN")}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!response.ok) {
     if (response.status === 409)
-      throw new Error(
-        "La acción ha caducado o ya cambió de estado. Actualiza la lista.",
-      );
-    throw new Error(
-      "No se ha podido completar la operación. Inténtalo de nuevo.",
-    );
+      throw new Error("La acción ha caducado o ya cambió de estado. Actualiza la lista.");
+    throw new Error("No se ha podido completar la operación. Inténtalo de nuevo.");
   }
   return response.json() as Promise<T>;
 }

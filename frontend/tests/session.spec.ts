@@ -16,10 +16,14 @@ test("session signatures expire at the exact boundary", () => {
 test("malformed cookies are rejected without throwing", () => {
   const signed = signSession(secret, now);
   for (const value of [
-    undefined, "", `${signed}.suffix`, `${signed}\n`,
+    undefined,
+    "",
+    `${signed}.suffix`,
+    `${signed}\n`,
     `${now + SESSION_TTL_MS}.${"\u00e9".repeat(64)}`,
     `${now + SESSION_TTL_MS}.${"g".repeat(64)}`,
-    `Infinity.${"a".repeat(64)}`, `1e30.${"a".repeat(64)}`,
+    `Infinity.${"a".repeat(64)}`,
+    `1e30.${"a".repeat(64)}`,
     `${now + SESSION_TTL_MS}.${"a".repeat(63)}`,
   ]) {
     expect(() => verifySession(value, secret, now)).not.toThrow();
@@ -30,7 +34,14 @@ test("malformed cookies are rejected without throwing", () => {
 test("server action identifiers reject coercion and malformed UUIDs", () => {
   const id = "12345678-1234-4123-8123-123456789abc";
   expect(isActionId(id)).toBe(true);
-  for (const value of [undefined, null, [id], "-".repeat(36), `${id}\n`, id.replace("-4123-", "-0123-")]) {
+  for (const value of [
+    undefined,
+    null,
+    [id],
+    "-".repeat(36),
+    `${id}\n`,
+    id.replace("-4123-", "-0123-"),
+  ]) {
     expect(isActionId(value)).toBe(false);
   }
   expect(isFingerprint("a".repeat(64))).toBe(true);

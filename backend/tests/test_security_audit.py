@@ -26,10 +26,14 @@ def issue(provider, client):
 
 
 def test_malformed_and_duplicate_bearer_headers_fail_closed(tmp_path):
-    app = create_app(Settings(
-        database_path=str(tmp_path / "actions.db"), mcp_token="m" * 32,
-        reviewer_token="r" * 32, mcp_allowed_hosts=["testserver"],
-    ))
+    app = create_app(
+        Settings(
+            database_path=str(tmp_path / "actions.db"),
+            mcp_token="m" * 32,
+            reviewer_token="r" * 32,
+            mcp_allowed_hosts=["testserver"],
+        )
+    )
     with TestClient(app) as client:
         for path, token in [("/actions", b"r" * 32), ("/mcp", b"m" * 32)]:
             for headers in [
@@ -88,7 +92,8 @@ def test_refresh_grants_cannot_cross_resource_or_owner(tmp_path, change):
     tokens = issue(provider, client)
     loaded = asyncio.run(provider.load_refresh_token(client, tokens.refresh_token))
     other = OAuthProvider(
-        path, "https://other.test" if change == "issuer" else "https://gateway.test",
+        path,
+        "https://other.test" if change == "issuer" else "https://gateway.test",
         "owner-b" if change == "subject" else "owner-a",
     )
     assert asyncio.run(other.load_access_token(tokens.access_token)) is None

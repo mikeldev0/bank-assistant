@@ -13,10 +13,18 @@ from scripts.setup_local import create_configuration
 
 
 def make_proposal(**changes):
-    return Proposal(**({
-        "recipient": "Audit Demo", "destination": "DEMO-1234", "amount_cents": 2500,
-        "concept": "Regression", "idempotency_key": "audit-key-1234",
-    } | changes))
+    return Proposal(
+        **(
+            {
+                "recipient": "Audit Demo",
+                "destination": "DEMO-1234",
+                "amount_cents": 2500,
+                "concept": "Regression",
+                "idempotency_key": "audit-key-1234",
+            }
+            | changes
+        )
+    )
 
 
 def test_action_database_is_private(tmp_path):
@@ -41,7 +49,10 @@ def test_expired_decision_commits_status_and_audit_before_error(tmp_path, monkey
     # Inspect the DB directly: a subsequent Store.get must not be what expires it.
     with store.connection() as db:
         assert db.execute("SELECT status FROM actions").fetchone()[0] == "expired"
-        assert [row[0] for row in db.execute("SELECT event FROM audit ORDER BY seq")] == ["proposed", "expired"]
+        assert [row[0] for row in db.execute("SELECT event FROM audit ORDER BY seq")] == [
+            "proposed",
+            "expired",
+        ]
 
 
 def test_decision_uses_one_transaction_and_retries_are_safe(tmp_path, monkeypatch):
@@ -62,7 +73,9 @@ def test_decision_uses_one_transaction_and_retries_are_safe(tmp_path, monkeypatc
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(lambda _: store.decide("alice", action["id"], action["fingerprint"], True), range(32)))
     assert [event["event"] for event in store.get("alice", action["id"])["audit"]] == [
-        "proposed", "confirmed", "executed",
+        "proposed",
+        "confirmed",
+        "executed",
     ]
 
 
@@ -86,9 +99,14 @@ def test_setup_secrets_private_separate_and_preserved(tmp_path):
     paths = [root / "backend/.env", root / "frontend/.env.local"]
     originals = [path.read_bytes() for path in paths]
     assert all(path.stat().st_mode & 0o777 == 0o600 for path in paths)
-    back, front = [dict(line.split("=", 1) for line in content.decode().splitlines()) for content in originals]
+    back, front = [
+        dict(line.split("=", 1) for line in content.decode().splitlines()) for content in originals
+    ]
     assert back["REVIEWER_TOKEN"] == front["REVIEWER_TOKEN"]
-    assert len({back["REVIEWER_TOKEN"], back["MCP_TOKEN"], front["REVIEW_PASSWORD"], front["SESSION_SECRET"]}) == 4
+    assert (
+        len({back["REVIEWER_TOKEN"], back["MCP_TOKEN"], front["REVIEW_PASSWORD"], front["SESSION_SECRET"]})
+        == 4
+    )
     with pytest.raises(FileExistsError):
         create_configuration(root)
     assert [path.read_bytes() for path in paths] == originals

@@ -26,9 +26,7 @@ export function Dashboard({
   initialSelection?: Transfer;
 }) {
   const [actions, setActions] = useState(initial),
-    [selected, setSelected] = useState<Transfer | null>(
-      initialSelection ?? null,
-    );
+    [selected, setSelected] = useState<Transfer | null>(initialSelection ?? null);
   const [filter, setFilter] = useState("all"),
     [checked, setChecked] = useState(false);
   const [error, setError] = useState(initialError),
@@ -65,7 +63,7 @@ export function Dashboard({
     run(async () => {
       const result = await decide(selected.id, selected.fingerprint, value);
       setSelected(result);
-      setActions((current) => current.map((action) => action.id === result.id ? result : action));
+      setActions((current) => current.map((action) => (action.id === result.id ? result : action)));
       setChecked(false);
       setNotice(
         value === "confirm"
@@ -80,8 +78,7 @@ export function Dashboard({
   const waiting = actions.filter((a) => a.status === "pending");
   const visible = actions.filter(
     (a) =>
-      filter === "all" ||
-      (filter === "pending" ? a.status === "pending" : a.status !== "pending"),
+      filter === "all" || (filter === "pending" ? a.status === "pending" : a.status !== "pending"),
   );
   const remaining = selected
     ? Math.max(0, Math.ceil((selected.expires_at * 1000 - now) / 1000))
@@ -116,9 +113,7 @@ export function Dashboard({
           <div className="sandbox">
             <ShieldCheck size={21} />
             <strong>Un espacio seguro</strong>
-            <p>
-              Todas las operaciones son simuladas. Tú decides qué se ejecuta.
-            </p>
+            <p>Todas las operaciones son simuladas. Tú decides qué se ejecuta.</p>
             <span>
               <i /> Modo sandbox
             </span>
@@ -144,8 +139,7 @@ export function Dashboard({
       <div className="main">
         <header>
           <div>
-            Workspace <ChevronRight size={14} />{" "}
-            <strong>Centro de control</strong>
+            Workspace <ChevronRight size={14} /> <strong>Centro de control</strong>
           </div>
           <span className="environment">
             <i /> Entorno de simulación
@@ -161,8 +155,7 @@ export function Dashboard({
               <p>La inteligencia propone. Tú tienes el control.</p>
             </div>
             <button className="secondary" disabled={pending} onClick={refresh}>
-              <RefreshCw size={16} className={pending ? "spin" : ""} />{" "}
-              Actualizar
+              <RefreshCw size={16} className={pending ? "spin" : ""} /> Actualizar
             </button>
           </div>
           <section className="hero">
@@ -220,9 +213,7 @@ export function Dashboard({
               {error}
             </div>
           )}
-          <p className="sr-only" role="status">
-            {notice}
-          </p>
+          <output className="sr-only">{notice}</output>
           <div className="section-title">
             <div>
               <h2>Actividad del asistente</h2>
@@ -274,9 +265,7 @@ export function Dashboard({
                     <div>
                       <strong>{action.recipient}</strong>
                       <small>{action.concept}</small>
-                      <span className={`badge ${action.status}`}>
-                        {labels[action.status]}
-                      </span>
+                      <span className={`badge ${action.status}`}>{labels[action.status]}</span>
                     </div>
                     <div className="amount">
                       <strong>{money(action.amount_cents)}</strong>

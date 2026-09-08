@@ -13,7 +13,8 @@ const readEnv = (path: string) =>
         return [line.slice(0, i), line.slice(i + 1)];
       }),
   );
-const front = readEnv(".env.local"), back = readEnv("../backend/.env");
+const front = readEnv(".env.local"),
+  back = readEnv("../backend/.env");
 const reviewerHeaders = { Authorization: `Bearer ${back.REVIEWER_TOKEN}` };
 
 async function propose(request: APIRequestContext): Promise<Transfer> {
@@ -23,12 +24,17 @@ async function propose(request: APIRequestContext): Promise<Transfer> {
       Accept: "application/json, text/event-stream",
     },
     data: {
-      jsonrpc: "2.0", id: 1, method: "tools/call",
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
       params: {
         name: "propose_transfer",
         arguments: {
-          recipient: "Taylor Demo", destination: "DEMO-9234", amount_cents: 4890,
-          concept: "Prueba E2E", idempotency_key: crypto.randomUUID(),
+          recipient: "Taylor Demo",
+          destination: "DEMO-9234",
+          amount_cents: 4890,
+          concept: "Prueba E2E",
+          idempotency_key: crypto.randomUUID(),
         },
       },
     },
@@ -41,7 +47,9 @@ async function propose(request: APIRequestContext): Promise<Transfer> {
 }
 
 async function readAction(request: APIRequestContext, id: string): Promise<Transfer> {
-  const response = await request.get(`http://127.0.0.1:8000/actions/${id}`, { headers: reviewerHeaders });
+  const response = await request.get(`http://127.0.0.1:8000/actions/${id}`, {
+    headers: reviewerHeaders,
+  });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
@@ -52,21 +60,30 @@ async function review(page: Page, id: string) {
   await page.getByLabel("Contrase\u00f1a").fill(front.REVIEW_PASSWORD);
   await page.getByRole("button", { name: "Entrar al espacio" }).click();
   await expect(page.getByRole("heading", { name: "Centro de control." })).toBeVisible();
-  await expect(page.getByLabel("Detalle de acci\u00f3n").getByText(id.slice(0, 8), { exact: true })).toBeVisible();
+  await expect(
+    page.getByLabel("Detalle de acci\u00f3n").getByText(id.slice(0, 8), { exact: true }),
+  ).toBeVisible();
 }
 
-async function decideViaApi(request: APIRequestContext, proposal: Transfer, decision: "confirm" | "reject") {
+async function decideViaApi(
+  request: APIRequestContext,
+  proposal: Transfer,
+  decision: "confirm" | "reject",
+) {
   return request.post(`http://127.0.0.1:8000/actions/${proposal.id}/decision`, {
-    headers: reviewerHeaders, data: { fingerprint: proposal.fingerprint, decision },
+    headers: reviewerHeaders,
+    data: { fingerprint: proposal.fingerprint, decision },
   });
 }
 
 test("MCP proposal requires explicit review; execution audit is idempotent and mobile fits", async ({
-  page, request,
+  page,
+  request,
 }, testInfo) => {
   const created = await propose(request);
   const proposal = process.env.REVIEW_ACTION_ID
-    ? await readAction(request, process.env.REVIEW_ACTION_ID) : created;
+    ? await readAction(request, process.env.REVIEW_ACTION_ID)
+    : created;
   await review(page, proposal.id);
   const pending = await readAction(request, proposal.id);
   expect(pending.status).toBe("pending");
@@ -81,7 +98,9 @@ test("MCP proposal requires explicit review; execution audit is idempotent and m
   expect(executed.status).toBe("executed");
   expect(executed.simulated).toBe(true);
   expect(executed.audit?.map(({ event, actor }) => [event, actor])).toEqual([
-    ["proposed", "agent"], ["confirmed", "human"], ["executed", "simulator"],
+    ["proposed", "agent"],
+    ["confirmed", "human"],
+    ["executed", "simulator"],
   ]);
   expect((await decideViaApi(request, proposal, "confirm")).status()).toBe(200);
   expect((await decideViaApi(request, proposal, "reject")).status()).toBe(409);
@@ -90,20 +109,28 @@ test("MCP proposal requires explicit review; execution audit is idempotent and m
   await page.screenshot({ path: testInfo.outputPath("dashboard-desktop.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("heading", { name: "Centro de control." })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
   await page.screenshot({ path: testInfo.outputPath("dashboard-mobile.png"), fullPage: true });
 });
 
-test("rejecting needs no confirmation checkbox and can never execute", async ({ page, request }) => {
+test("rejecting needs no confirmation checkbox and can never execute", async ({
+  page,
+  request,
+}) => {
   const proposal = await propose(request);
   await review(page, proposal.id);
   await expect(page.getByRole("checkbox")).not.toBeChecked();
   await page.getByRole("button", { name: "Rechazar propuesta" }).click();
-  await expect(page.getByLabel("Detalle de acci\u00f3n").getByText("Acci\u00f3n rechazada")).toBeVisible();
+  await expect(
+    page.getByLabel("Detalle de acci\u00f3n").getByText("Acci\u00f3n rechazada"),
+  ).toBeVisible();
   const rejected = await readAction(request, proposal.id);
   expect(rejected.status).toBe("rejected");
   expect(rejected.audit?.map(({ event, actor }) => [event, actor])).toEqual([
-    ["proposed", "agent"], ["rejected", "human"],
+    ["proposed", "agent"],
+    ["rejected", "human"],
   ]);
   expect((await decideViaApi(request, proposal, "reject")).status()).toBe(200);
   expect((await decideViaApi(request, proposal, "confirm")).status()).toBe(409);

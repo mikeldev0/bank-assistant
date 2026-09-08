@@ -273,7 +273,8 @@ class OAuthProvider:
             data = self.get(db, "refresh", refresh_token.token)
             if not replay and self.valid_grant(data, client.client_id) and set(scopes) <= set(data["scopes"]):
                 family = db.execute(
-                    "SELECT family FROM oauth WHERE kind='refresh' AND key=?", (self.hashed(refresh_token.token),)
+                    "SELECT family FROM oauth WHERE kind='refresh' AND key=?",
+                    (self.hashed(refresh_token.token),),
                 ).fetchone()[0]
                 db.execute(
                     "UPDATE oauth SET kind='used_refresh' WHERE kind='refresh' AND key=?",
@@ -313,7 +314,9 @@ class OAuthProvider:
         token_value = form.get("token")
         if not isinstance(token_value, str) or not token_value:
             return Response(status_code=400)
-        token = await self.load_access_token(token_value) or await self.load_refresh_token(client, token_value)
+        token = await self.load_access_token(token_value) or await self.load_refresh_token(
+            client, token_value
+        )
         if token and token.client_id == client.client_id:
             await self.revoke_token(token)
         return Response(status_code=200, headers={"Cache-Control": "no-store"})
@@ -341,9 +344,13 @@ class OAuthProvider:
         body = urlencode([*form.multi_items(), ("client_id", client_id)]).encode()
         scope = dict(request.scope)
         scope["headers"] = [
-            (key, value) for key, value in scope["headers"]
+            (key, value)
+            for key, value in scope["headers"]
             if key.lower() not in {b"content-length", b"content-type"}
-        ] + [(b"content-type", b"application/x-www-form-urlencoded"), (b"content-length", str(len(body)).encode())]
+        ] + [
+            (b"content-type", b"application/x-www-form-urlencoded"),
+            (b"content-length", str(len(body)).encode()),
+        ]
 
         async def receive():
             return {"type": "http.request", "body": body, "more_body": False}

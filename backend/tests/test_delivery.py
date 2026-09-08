@@ -29,4 +29,6 @@ def test_report_totals_match_every_recorded_case():
         assert all(type(case["judge_passed"]) is bool for case in run["cases"])
         assert sum(case["judge_passed"] for case in run["cases"]) == run["passed"]
         assert sum(case["tool_calls"] for case in run["cases"]) == run["total_tool_calls"]
-        assert sum(case["tokens_total_displayed"] for case in run["cases"]) == run["tokens_total_displayed_sum"]
+        assert (
+            sum(case["tokens_total_displayed"] for case in run["cases"]) == run["tokens_total_displayed_sum"]
+        )
