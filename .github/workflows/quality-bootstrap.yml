@@ -33,7 +33,7 @@ jobs:
       - name: Reproduce the reviewed dependency lock
         run: |
           cp frontend/package.json /tmp/final-package.json
-          git show 4e34e0e29ce642fd4eac002caadf0004b1b8c815:frontend/package.json > frontend/package.json
+          git show HEAD:frontend/package.json > frontend/package.json
           cd frontend
           npm uninstall --save-dev prettier
           npm install --save-dev --save-exact oxlint@1.82.0 oxfmt@0.67.0
