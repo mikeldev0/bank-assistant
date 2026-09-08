@@ -24,7 +24,7 @@ jobs:
       - run: python3 scripts/setup_local.py
       - run: |
           cd backend
-          uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+          .venv/bin/python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log > /tmp/backend.log 2>&1 &
       - run: |
           cd frontend
           npm start > /tmp/frontend.log 2>&1 &
